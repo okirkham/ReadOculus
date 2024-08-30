@@ -7,6 +7,12 @@ oculus = r"P:\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-18_17-32-14\sonar\Oculus_
 
 oculusBinary = open(oculus, mode='rb')
 
+def main():
+    headerData = oculusBinary.read(44)
+    
+    df = header(headerData)
+    print(df)
+
 def header(data):
     data_length = 44
     data_list = [data[0:data_length]]
@@ -65,11 +71,6 @@ def sonarData(data):
     df = pd.DataFrame(data=[data_payload], columns=hdrs)
     return df
 
-# Test
-data = oculusBinary.read(44)
-print(data)
-df = test_function(data)
-print(df)
-# ts = dt.now().strftime("%Y%m%d_%H%M%S")
-# df.to_csv(f"{ts}_data.csv")
+if __name__ == "__main__":
+    main()
 
