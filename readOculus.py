@@ -8,8 +8,8 @@ oculus = r"P:\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-18_17-32-14\sonar\Oculus_
 oculusBinary = open(oculus, mode='rb')
 
 def main():
-    headerData = oculusBinary.read(44)
-    sonarLogData = oculusBinary.read(48)
+    headerData = oculusBinary.read(48)
+    sonarLogData = oculusBinary.read(44)
     
     df = header(headerData)
     print(df)
@@ -49,7 +49,6 @@ def header(data):
 # ignore
 def sonarLog(data):
     data_list = [data[0:44]]
-    print(data_list)
     for x in data_list:
         data_format = "2I2h4xd4xh2I4x"
         data_payload = list(struct.unpack(data_format, x))
