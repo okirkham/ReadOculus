@@ -48,9 +48,9 @@ def header(data):
 
 # ignore
 def sonarLog(data):
-    data_list = [data[0:44]]
+    data_list = [data[0:40]]
     for x in data_list:
-        data_format = "2I2h4xd4xh2I4x"
+        data_format = "2I2h4xd2xh2I4x"
         data_payload = list(struct.unpack(data_format, x))
         
     # variables
