@@ -1,0 +1,50 @@
+import struct
+
+hdrs = [
+        "itemHeader",
+        "sizeHeader",
+        "messageType",
+        "version",
+        "time",
+        "compression",
+        "rawSize",
+        "payloadSize1",
+        "oculusID",
+        "sourceID",
+        "destinationID",
+        "messageID",
+        "version",
+        "payloadSize2",
+        "partNumber",
+        "masterMode",
+        "pingRate",
+        "networkSpeed",
+        "gamma",
+        "flags",
+        "range",
+        "gain",
+        "speedOfSound1",
+        "salinity",
+        "extFlags",
+        "beaconLocatorFrequency",
+        "pingID",
+        "frequency",
+        "temperature",
+        "pressure",
+        "heading",
+        "pitch",
+        "roll",
+        "speedOfSound2",
+        "pingStartTime",
+        "dataSize",
+        "rangeResolution",
+        "rangeCount",
+        "bearingCount",
+        "imageOffset",
+        "imageSize",
+        "messageSize"
+    ]
+
+print(len(hdrs))
+
+print(struct.calcsize("2I2h4xd2xh2I4x5HIH5B4dI8xI20xI4x8dBd2H16x3I"))
