@@ -1,50 +1,17 @@
 import struct
 
-hdrs = [
-        "itemHeader",
-        "sizeHeader",
-        "messageType",
-        "version",
-        "time",
-        "compression",
-        "rawSize",
-        "payloadSize1",
-        "oculusID",
-        "sourceID",
-        "destinationID",
-        "messageID",
-        "version",
-        "payloadSize2",
-        "partNumber",
-        "masterMode",
-        "pingRate",
-        "networkSpeed",
-        "gamma",
-        "flags",
-        "range",
-        "gain",
-        "speedOfSound1",
-        "salinity",
-        "extFlags",
-        "beaconLocatorFrequency",
-        "pingID",
-        "frequency",
-        "temperature",
-        "pressure",
-        "heading",
-        "pitch",
-        "roll",
-        "speedOfSound2",
-        "pingStartTime",
-        "dataSize",
-        "rangeResolution",
-        "rangeCount",
-        "bearingCount",
-        "imageOffset",
-        "imageSize",
-        "messageSize"
-    ]
+#print(struct.calcsize("2I2h4xd2xh2I4x5HIH5B4dI8xI20xI4x8dBd2H16x3I"))
 
-print(len(hdrs))
+# Given binary hex code
+#binary_data = bytes.fromhex(hex_data)
 
-print(struct.calcsize("2I2h4xd2xh2I4x5HIH5B4dI8xI20xI4x8dBd2H16x3I"))
+# Define the struct format
+struct_format = "<I4x5HIH5B"
+
+# Unpack the binary data
+#unpacked_data = struct.unpack(struct_format, binary_data)
+
+# Print the unpacked data
+#print(unpacked_data)
+
+print(struct.calcsize(struct_format))

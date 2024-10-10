@@ -4,29 +4,31 @@ import pandas as pd
 from datetime import datetime as dt 
 import csv
 
-oculus = r"P:\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-18_17-32-14\sonar\Oculus_20230718_173214.oculus.old"
+oculus = r"P:\ROV\Oculus_20240823_211229.oculus"
 
 oculusBinary = open(oculus, mode='rb')
 
 def main():
     sonarData = oculusBinary.read()
-    outCSV = r"P:\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-18_17-32-14\sonar\OculusCSV.csv"
-    outMeta = r"P:\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-18_17-32-14\sonar\OculusMeta.txt"
+    start = 48
+    logSize = 242
 
     df = header(sonarData)
-    start = df['sizeHeader'].values[0]
-    print(start)
-    dfSonarMeta = sonarLogHeader(sonarData, start)
-    dfSonarMeta.to_csv(outCSV)
+
+    dfSonarMeta = sonarLogHeader(sonarData, start, logSize)
+
+    bearingStart = start + dfSonarMeta['imageOffset'].values[0]
     offset = dfSonarMeta['imageOffset'].values[0]
-    print(dfSonarMeta)
-    print(offset)
+    
+
+    oculusBinary.close()
+
 
 def header(data):
     data_length = 48
     data_list = [data[0:data_length]]
     for x in data_list:
-        data_format = "=B3xI6s10x2h2d4x"
+        data_format = "<B3xI6s10x2h2d4x"
         data_payload = list(struct.unpack(data_format, x))
         
     # variables
@@ -52,12 +54,12 @@ def header(data):
     return df
 
 # ignore
-def sonarLogHeader(data, start):
-    data_list = [data[start:(start+256)]]
+def sonarLogHeader(data, start, logSize):
+    data_list = [data[start:(start+logSize)]]
     for x in data_list:
-        data_format = "2I2h4xd2xh2I4x5HIH5B4dI8xI20xI4x8dBd2H16x3I"
+        data_format = "<2I2h4xd2xh2I4x5HIH5B4dI8xI20xI4x8dBd2H16x3I"
         data_payload = list(struct.unpack(data_format, x))
-        
+
     # variables
     data_payload[0]                                      # itemHeader
     data_payload[1]                                      # sizeHeader
@@ -152,7 +154,8 @@ def sonarLogHeader(data, start):
     df = pd.DataFrame(data=[data_payload], columns=hdrs)
     return df
 
-#def 
+#def bearings(data, start, offset):
+
 
 if __name__ == "__main__":
     main()
