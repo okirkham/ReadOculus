@@ -10,16 +10,22 @@ oculusBinary = open(oculus, mode='rb')
 
 def main():
     sonarData = oculusBinary.read()
+    
+    # define constant value sizes
     start = 48
     logSize = 242
+    bearingStart = start + logSize
 
     df = header(sonarData)
 
     dfSonarMeta = sonarLogHeader(sonarData, start, logSize)
 
-    bearingStart = start + dfSonarMeta['imageOffset'].values[0]
     offset = dfSonarMeta['imageOffset'].values[0]
+    numBearings = dfSonarMeta['bearingCount'].values[0]
+
+    bDf = bearings(sonarData, bearingStart, numBearings)
     
+    print(bDf)
 
     oculusBinary.close()
 
@@ -50,10 +56,11 @@ def header(data):
         "time",
     ]
 
+    print(data_payload)
+
     df = pd.DataFrame(data=[data_payload], columns=hdrs)
     return df
 
-# ignore
 def sonarLogHeader(data, start, logSize):
     data_list = [data[start:(start+logSize)]]
     for x in data_list:
@@ -154,8 +161,24 @@ def sonarLogHeader(data, start, logSize):
     df = pd.DataFrame(data=[data_payload], columns=hdrs)
     return df
 
-#def bearings(data, start, offset):
+def bearings(data, bearingStart, numBearings):
+    data_list = [data[bearingStart:(bearingStart+8)]]
+    df = pd.DataFrame([0],  columns =  ["bearings"])
+    n = 0
+    print(data_list)
 
+    for i in range(numBearings):
+        data_format = "<h6x"
+        x = data_list[0]
+        data_payload = struct.unpack(data_format, x)
+        bearing = data_payload[0]
+        df.loc[i] = bearing
+        n = n + 8
+        data_list = [data[(bearingStart+n):(bearingStart+8+n)]]
+
+    return df 
+
+#def payload():
 
 if __name__ == "__main__":
     main()
