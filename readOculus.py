@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime as dt 
 import csv
 
-oculus = r"P:\ROV\Oculus_20240823_211229.oculus"
+oculus = r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20240823_211229.oculus.old"
 
 oculusBinary = open(oculus, mode='rb')
 
@@ -16,21 +16,22 @@ def main():
     logSize = 242
     bearingStart = start + logSize
 
-    df = header(sonarData)
+    headerData = header(sonarData)
 
     dfSonarMeta = sonarLogHeader(sonarData, start, logSize)
 
-    offset = dfSonarMeta['imageOffset'].values[0]
     numBearings = dfSonarMeta['bearingCount'].values[0]
     messageSize = dfSonarMeta['messageSize'].values[0]
+    rangeCount = dfSonarMeta['rangeCount'].values[0]
     fileSize = len(sonarData)
 
-    bDf = bearings(sonarData, bearingStart, numBearings)
+    df = payload(sonarData, bearingStart, numBearings, rangeCount)
 
-    numItems = int((fileSize-48)/messageSize)
+    df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20240823_211229.csv", index=False)  
 
-    for i in numItems
+    numItems = int((fileSize-48)/(messageSize+40))
 
+    print(numItems)
 
     oculusBinary.close()
 
@@ -60,8 +61,6 @@ def header(data):
         "key",
         "time",
     ]
-
-    print(data_payload)
 
     df = pd.DataFrame(data=[data_payload], columns=hdrs)
     return df
@@ -166,39 +165,47 @@ def sonarLogHeader(data, start, logSize):
     df = pd.DataFrame(data=[data_payload], columns=hdrs)
     return df
 
-def bearings(data, bearingStart, numBearings):
-    data_list = [data[bearingStart:(bearingStart+8)]]
-    df = pd.DataFrame([0],  columns =  ["bearings"]) # 0 is a placeholder value that gets overwritten by the first bearing
+def payload(data, bearingStart, numBearings, rangeCount):
+    data_list = [data[bearingStart:(bearingStart+2)]]
+    dfb = pd.DataFrame([0],  columns =  ["bearings"]) # 0 is a placeholder value that gets overwritten by the first bearing
     n = 0
-    print(data_list)
 
     for i in range(numBearings):
-        data_format = "<h6x"
+        data_format = "<h"
         x = data_list[0]
         data_payload = struct.unpack(data_format, x)
-        bearing = data_payload[0]
-        df.loc[i] = bearing
-        n = n + 8
-        data_list = [data[(bearingStart+n):(bearingStart+8+n)]]
+        bearing = (data_payload[0])/100
+        dfb.loc[i] = bearing
+        n = n + 2
+        data_list = [data[(bearingStart+n):(bearingStart+2+n)]]
 
-    return df 
+    payloadStart = bearingStart + n + 1334
 
-def payload():
-    data_list = [data[bearingStart:(bearingStart+8)]]
-    df = pd.DataFrame([0],  columns =  ["bearings"]) # 0 is a placeholder value that gets overwritten by the first bearing
-    n = 0
-    print(data_list)
+    p = 0
 
-    for i in range(numBearings):
-        data_format = "<h6x"
-        x = data_list[0]
-        data_payload = struct.unpack(data_format, x)
-        bearing = data_payload[0]
-        df.loc[i] = bearing
-        n = n + 8
-        data_list = [data[(bearingStart+n):(bearingStart+8+n)]]
+    dfList = [dfb]
+    
+    for i in range(rangeCount):
+        data_list = [data[(payloadStart+p):(payloadStart+1+p)]]
+        df = pd.DataFrame([0],  columns = [f'{i}']) # 0 is a placeholder value that gets overwritten by the first intensity value
+        a = 0
 
-    return df
+        for v in range(128):
+            data_format = "<b"
+            x = data_list[0]
+            data_payload = struct.unpack(data_format, x)
+            sonar = data_payload[0]
+            df.loc[v] = sonar
+            df.loc[v+128] = sonar # used to fill in the values for now
+            a = a + 1
+            data_list = [data[(payloadStart+a+p):(payloadStart+1+a+p)]]
+
+        dfList.append(df)
+        p = p + 128
+
+    dfc = pd.concat(dfList, axis=1)
+    
+    return dfc
 
 if __name__ == "__main__":
     main()
