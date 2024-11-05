@@ -191,7 +191,7 @@ def payload(data, bearingStart, numBearings, rangeCount):
         a = 0
 
         for v in range(128):
-            data_format = "<b"
+            data_format = "<B"
             x = data_list[0]
             data_payload = struct.unpack(data_format, x)
             sonar = data_payload[0]
