@@ -166,7 +166,6 @@ def sonarLogHeader(data, start, logSize):
     return df
 
 def payload(data, bearingStart, numBearings, rangeCount):
-    data_list = [data[bearingStart:(bearingStart+2)]]
     dfb = pd.DataFrame([0],  columns =  ["bearings"]) # 0 is a placeholder value that gets overwritten by the first bearing
     n = 0
     bearings = []
@@ -179,8 +178,6 @@ def payload(data, bearingStart, numBearings, rangeCount):
         n += 2
 
     dfb = pd.DataFrame(bearings, columns=["bearings"])
-
-    p = 0
 
     payloadStart = bearingStart + n + 1334 
     dfList = [dfb] 
