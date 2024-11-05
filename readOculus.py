@@ -169,39 +169,32 @@ def payload(data, bearingStart, numBearings, rangeCount):
     data_list = [data[bearingStart:(bearingStart+2)]]
     dfb = pd.DataFrame([0],  columns =  ["bearings"]) # 0 is a placeholder value that gets overwritten by the first bearing
     n = 0
+    bearings = []
 
     for i in range(numBearings):
+        x = data[bearingStart+n:bearingStart+n+2]
         data_format = "<h"
-        x = data_list[0]
-        data_payload = struct.unpack(data_format, x)
-        bearing = (data_payload[0])/100
-        dfb.loc[i] = bearing
-        n = n + 2
-        data_list = [data[(bearingStart+n):(bearingStart+2+n)]]
+        bearing = struct.unpack(data_format, x)[0]/100
+        bearings.append(bearing)
+        n += 2
 
-    payloadStart = bearingStart + n + 1334
+    dfb = pd.DataFrame(bearings, columns=["bearings"])
 
     p = 0
 
-    dfList = [dfb]
-    
-    for i in range(rangeCount):
-        data_list = [data[(payloadStart+p):(payloadStart+1+p)]]
-        df = pd.DataFrame([0],  columns = [f'{i}']) # 0 is a placeholder value that gets overwritten by the first intensity value
-        a = 0
+    payloadStart = bearingStart + n + 1334 
+    dfList = [dfb] 
 
-        for v in range(128):
-            data_format = "<B"
-            x = data_list[0]
-            data_payload = struct.unpack(data_format, x)
-            sonar = data_payload[0]
-            df.loc[v] = sonar
-            df.loc[v+128] = sonar # used to fill in the values for now
-            a = a + 1
-            data_list = [data[(payloadStart+a+p):(payloadStart+1+a+p)]]
+    for i in range(rangeCount): 
+        intensities = [] 
 
-        dfList.append(df)
-        p = p + 128
+        for v in range(128): 
+            x = data[payloadStart + i*128 + v: payloadStart + i*128 + v + 1] 
+            sonar = struct.unpack("<B", x)[0] 
+            intensities.append(sonar) 
+            
+        df = pd.DataFrame(intensities, columns=[f'{i}']) 
+        dfList.append(df) 
 
     dfc = pd.concat(dfList, axis=1)
     
