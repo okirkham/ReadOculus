@@ -168,41 +168,12 @@ def nibbleReader(binary):
     return nibbles
 
 def binaryConverter(binary): 
-    out4bit = [] 
-    for i in nibbleReader(binary):
-        if i == '0000': 
-            out4bit.append(0) 
-        elif i == '0001': 
-            out4bit.append(1) 
-        elif i == '0010': 
-            out4bit.append(2) 
-        elif i == '0011': 
-            out4bit.append(3) 
-        elif i == '0100': 
-            out4bit.append(4) 
-        elif i == '0101': 
-            out4bit.append(5) 
-        elif i == '0110': 
-            out4bit.append(6) 
-        elif i == '0111': 
-            out4bit.append(7) 
-        elif i == '1000': 
-            out4bit.append(8) 
-        elif i == '1001': 
-            out4bit.append(9) 
-        elif i == '1010': 
-            out4bit.append(10) 
-        elif i == '1011': 
-            out4bit.append(11) 
-        elif i == '1100': 
-            out4bit.append(12) 
-        elif i == '1101': 
-            out4bit.append(13) 
-        elif i == '1110': 
-            out4bit.append(14) 
-        elif i == '1111': 
-            out4bit.append(15) 
-    return out4bit
+    binary_map = {'0000': 0, '0001': 1, '0010': 2, '0011': 3, 
+                  '0100': 4, '0101': 5, '0110': 6, '0111': 7, 
+                  '1000': 8, '1001': 9, '1010': 10, '1011': 11, 
+                  '1100': 12, '1101': 13, '1110': 14, '1111': 15} 
+
+    return [binary_map[i] for i in nibbleReader(binary)]
 
 def payload(data, bearingStart, numBearings, rangeCount):
     dfb = pd.DataFrame([0],  columns =  ["bearings"]) # 0 is a placeholder value that gets overwritten by the first bearing
