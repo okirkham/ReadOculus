@@ -1,8 +1,6 @@
-import binascii
 import struct
 import pandas as pd
 from datetime import datetime as dt 
-import csv
 
 oculus = r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20240823_211229.oculus.old"
 
@@ -165,6 +163,47 @@ def sonarLogHeader(data, start, logSize):
     df = pd.DataFrame(data=[data_payload], columns=hdrs)
     return df
 
+def nibbleReader(binary):
+    nibbles = [binary[i:i+4] for i in range(0, len(binary),4)]
+    return nibbles
+
+def binaryConverter(binary): 
+    out4bit = [] 
+    for i in nibbleReader(binary):
+        if i == '0000': 
+            out4bit.append(0) 
+        elif i == '0001': 
+            out4bit.append(1) 
+        elif i == '0010': 
+            out4bit.append(2) 
+        elif i == '0011': 
+            out4bit.append(3) 
+        elif i == '0100': 
+            out4bit.append(4) 
+        elif i == '0101': 
+            out4bit.append(5) 
+        elif i == '0110': 
+            out4bit.append(6) 
+        elif i == '0111': 
+            out4bit.append(7) 
+        elif i == '1000': 
+            out4bit.append(8) 
+        elif i == '1001': 
+            out4bit.append(9) 
+        elif i == '1010': 
+            out4bit.append(10) 
+        elif i == '1011': 
+            out4bit.append(11) 
+        elif i == '1100': 
+            out4bit.append(12) 
+        elif i == '1101': 
+            out4bit.append(13) 
+        elif i == '1110': 
+            out4bit.append(14) 
+        elif i == '1111': 
+            out4bit.append(15) 
+    return out4bit
+
 def payload(data, bearingStart, numBearings, rangeCount):
     dfb = pd.DataFrame([0],  columns =  ["bearings"]) # 0 is a placeholder value that gets overwritten by the first bearing
     n = 0
@@ -181,15 +220,16 @@ def payload(data, bearingStart, numBearings, rangeCount):
 
     payloadStart = bearingStart + n + 1334 
     dfList = [dfb] 
-
     for i in range(rangeCount): 
         intensities = [] 
 
         for v in range(128): 
             x = data[payloadStart + i*128 + v: payloadStart + i*128 + v + 1] 
-            sonar = struct.unpack("<B", x)[0] 
-            intensities.append(sonar) 
-            
+            sonar = struct.unpack("<B", x)[0]
+            b = format(sonar, '08b')
+            nibble = binaryConverter(str(b))
+            for f in nibble:
+                intensities.append(f) 
         df = pd.DataFrame(intensities, columns=[f'{i}']) 
         dfList.append(df) 
 
