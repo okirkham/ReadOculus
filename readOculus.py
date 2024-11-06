@@ -2,7 +2,7 @@ import struct
 import pandas as pd
 from datetime import datetime as dt 
 
-oculus = r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20240823_211229.oculus.old"
+oculus = r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\sonar\Oculus_20230717_181225.oculus.old"
 
 oculusBinary = open(oculus, mode='rb')
 
@@ -25,7 +25,7 @@ def main():
 
     df = payload(sonarData, bearingStart, numBearings, rangeCount)
 
-    df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20240823_211229.csv", index=False)  
+    df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20230717_181225.csv", index=False)  
 
     numItems = int((fileSize-48)/(messageSize+40))
 
@@ -201,7 +201,7 @@ def payload(data, bearingStart, numBearings, rangeCount):
             nibble = binaryConverter(str(b))
             for f in nibble:
                 intensities.append(f) 
-        df = pd.DataFrame(intensities, columns=[f'{i}']) 
+        df = pd.DataFrame(intensities, columns=[f'{i+1}']) 
         dfList.append(df) 
 
     dfc = pd.concat(dfList, axis=1)
