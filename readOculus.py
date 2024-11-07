@@ -1,6 +1,6 @@
 import struct
 import pandas as pd
-from datetime import datetime as dt 
+from datetime import datetime, timezone
 
 oculus = r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\sonar\Oculus_20230717_181225.oculus.old"
 
@@ -17,6 +17,7 @@ def main():
     headerData = header(sonarData)
 
     dfSonarMeta = sonarLogHeader(sonarData, start, logSize)
+    dfSonarMeta.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20230717_181225_meta.csv", index=False)  
 
     numBearings = dfSonarMeta['bearingCount'].values[0]
     messageSize = dfSonarMeta['messageSize'].values[0]
@@ -25,7 +26,7 @@ def main():
 
     df = payload(sonarData, bearingStart, numBearings, rangeCount)
 
-    df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20230717_181225.csv", index=False)  
+    #df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20230717_181225.csv", index=False)  
 
     numItems = int((fileSize-48)/(messageSize+40))
 
@@ -74,7 +75,7 @@ def sonarLogHeader(data, start, logSize):
     data_payload[1]                                      # sizeHeader
     data_payload[2]                                      # messageType
     data_payload[3]                                      # version
-    data_payload[4]                                      # time   
+    data_payload[4] = datetime.fromtimestamp(data_payload[4], tz=timezone.utc).strftime('%Y.%m.%d %H:%M:%S:%f')[:-3] # time   
     data_payload[5]                                      # compression
     data_payload[6]                                      # rawSize
     data_payload[7]                                      # payloadSize
