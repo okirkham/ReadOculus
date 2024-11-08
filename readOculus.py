@@ -1,36 +1,66 @@
 import struct
 import pandas as pd
 from datetime import datetime, timezone
+import numpy as np
 
 oculus = r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\sonar\Oculus_20230717_181225.oculus.old"
 
-oculusBinary = open(oculus, mode='rb')
-
 def main():
+    oculusBinary = open(oculus, mode='rb')
+
     sonarData = oculusBinary.read()
-    
+    fileSize = len(sonarData)
+
     # define constant value sizes
-    start = 48
+    position = 48
     logSize = 242
-    bearingStart = start + logSize
+    bearingStart = position + logSize
 
     headerData = header(sonarData)
 
-    dfSonarMeta = sonarLogHeader(sonarData, start, logSize)
-    dfSonarMeta.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20230717_181225_meta.csv", index=False)  
+    dfSonarMeta = sonarLogHeader(sonarData, position, logSize)
 
+    # find beam bearings
     numBearings = dfSonarMeta['bearingCount'].values[0]
-    messageSize = dfSonarMeta['messageSize'].values[0]
-    rangeCount = dfSonarMeta['rangeCount'].values[0]
-    fileSize = len(sonarData)
+    Bdf = bearings(sonarData, bearingStart, numBearings)
 
-    df = payload(sonarData, bearingStart, numBearings, rangeCount)
+    # calculate estimate message size
+    size = dfSonarMeta['messageSize'].values[0]
 
-    #df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\Oculus_20230717_181225.csv", index=False)  
+    true_size = size + 40
 
-    numItems = int((fileSize-48)/(messageSize+40))
+    numItems = int((fileSize-48)/true_size)
+    
+    # create message size
+    messageSize = 0
 
-    print(numItems)
+    
+    final_df = pd.DataFrame(columns=[['bearing', 'rangeLine', 'Intensity', 
+                                    'distance (m)', 'time', 'heading', 
+                                    'pitch', 'roll']])
+
+    for item in range(0,numItems):
+        sonarMeta = sonarLogHeader(sonarData, position, logSize)
+
+        # extract key values
+        rangeCount = sonarMeta['rangeCount'].values[0]
+        rangeResolution = sonarMeta['rangeResolution'].values[0]
+        time = sonarMeta['time'].values[0]
+        heading = sonarMeta['heading'].values[0]
+        pitch = sonarMeta['pitch'].values[0]
+        roll = sonarMeta['roll'].values[0]
+        messageSize = sonarMeta['messageSize'].values[0]
+
+        # extract sonar data for item
+        df = payload(sonarData, rangeCount, rangeResolution, time, position, heading, pitch, roll, Bdf)
+
+        position = position + messageSize + 40
+        
+        print(f'{(position/fileSize)*100}% complete')
+
+        final_df = pd.concat([final_df, df])
+
+    final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", index=False) 
 
     oculusBinary.close()
 
@@ -107,7 +137,7 @@ def sonarLogHeader(data, start, logSize):
     data_payload[33]                                     # 
     data_payload[34]                                     # 
     data_payload[35]                                     # 
-    data_payload[36]                                     # 
+    data_payload[36]                                     # rangeResolution
     data_payload[37]                                     # 
     data_payload[38]                                     # 
     data_payload[39]                                     # 
@@ -176,7 +206,7 @@ def binaryConverter(binary):
 
     return [binary_map[i] for i in nibbleReader(binary)]
 
-def payload(data, bearingStart, numBearings, rangeCount):
+def bearings(data, bearingStart, numBearings):
     dfb = pd.DataFrame([0],  columns =  ["bearings"]) # 0 is a placeholder value that gets overwritten by the first bearing
     n = 0
     bearings = []
@@ -190,7 +220,11 @@ def payload(data, bearingStart, numBearings, rangeCount):
 
     dfb = pd.DataFrame(bearings, columns=["bearings"])
 
-    payloadStart = bearingStart + n + 1334 
+    return dfb
+
+def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, roll, dfb):
+
+    payloadStart = position + 2136
     dfList = [dfb] 
     for i in range(rangeCount): 
         intensities = [] 
@@ -206,8 +240,22 @@ def payload(data, bearingStart, numBearings, rangeCount):
         dfList.append(df) 
 
     dfc = pd.concat(dfList, axis=1)
+
+    new_data = [] 
+    for index, row in dfc.iloc[1:].iterrows():  
+        max_value = row.iloc[2:].max()
+        if max_value > 14:
+            max_col_header = row.iloc[1:].idxmax()
+            new_row = [row.iloc[0], max_col_header, max_value, (int(max_col_header)*rangeResolution), time, heading, pitch, roll] 
+            new_data.append(new_row)
+        else:
+            pass
     
-    return dfc
+    new_columns = ['bearing', 'rangeLine', 'Intensity', 'distance (m)', 'time', 'heading', 'pitch', 'roll'] 
+
+    out_df = pd.DataFrame(new_data, columns=new_columns)
+    
+    return out_df
 
 if __name__ == "__main__":
     main()
