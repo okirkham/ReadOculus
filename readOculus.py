@@ -34,9 +34,11 @@ def main():
     # create message size
     messageSize = 0
 
+    # create final list
     final_list = []
 
-    n = 1
+    # create chunk processing threshold
+    threshold = 5
 
     for item in range(0,numItems):
         if position + logSize > fileSize: 
@@ -62,8 +64,6 @@ def main():
 
         final_list.append(dataList)
 
-        threshold = 5
-
         if progress > threshold:
             print(f'{progress}% complete')
             flat_data = [item for sublist in final_list for item in sublist]
@@ -71,8 +71,11 @@ def main():
                                     'distance (m)', 'time', 'heading', 
                                     'pitch', 'roll'])
 
-            final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', index=False)
-            
+            if threshold == 5:
+                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', index=False)
+            else:
+                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', header=False, index=False)
+
             threshold += 5
 
             del final_df 
