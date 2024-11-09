@@ -2,8 +2,12 @@ import struct
 import pandas as pd
 from datetime import datetime, timezone
 import numpy as np
+import os 
 
-oculus = r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\sonar\Oculus_20230717_181225.oculus.old"
+base_path = r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\sonar" 
+filename = "Oculus_20230717_181225.oculus.old"
+
+oculus = os.path.join(base_path, filename)
 
 def main():
     oculusBinary = open(oculus, mode='rb')
@@ -22,7 +26,7 @@ def main():
 
     # find beam bearings
     numBearings = dfSonarMeta['bearingCount'].values[0]
-    Bdf = bearings(sonarData, bearingStart, numBearings)
+    bearingList = bearings(sonarData, bearingStart, numBearings)
 
     # calculate estimate message size
     size = dfSonarMeta['messageSize'].values[0]
@@ -56,7 +60,7 @@ def main():
         messageSize = sonarMeta['messageSize'].values[0]
 
         # extract sonar data for item
-        dataList = payload(sonarData, rangeCount, rangeResolution, time, position, heading, pitch, roll, Bdf)
+        dataList = payload(sonarData, rangeCount, rangeResolution, time, position, heading, pitch, roll, bearingList)
 
         position = position + messageSize + 40
         
