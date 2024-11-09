@@ -34,12 +34,14 @@ def main():
     # create message size
     messageSize = 0
 
-    
-    final_df = pd.DataFrame(columns=[['bearing', 'rangeLine', 'Intensity', 
-                                    'distance (m)', 'time', 'heading', 
-                                    'pitch', 'roll']])
+    final_list = []
+
+    n = 1
 
     for item in range(0,numItems):
+        if position + logSize > fileSize: 
+            break
+
         sonarMeta = sonarLogHeader(sonarData, position, logSize)
 
         # extract key values
@@ -52,15 +54,31 @@ def main():
         messageSize = sonarMeta['messageSize'].values[0]
 
         # extract sonar data for item
-        df = payload(sonarData, rangeCount, rangeResolution, time, position, heading, pitch, roll, Bdf)
+        dataList = payload(sonarData, rangeCount, rangeResolution, time, position, heading, pitch, roll, Bdf)
 
         position = position + messageSize + 40
         
-        print(f'{(position/fileSize)*100}% complete')
+        progress = (position/fileSize)*100
 
-        final_df = pd.concat([final_df, df])
+        final_list.append(dataList)
 
-    final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", index=False) 
+        threshold = 5
+
+        if progress > threshold:
+            print(f'{progress}% complete')
+            flat_data = [item for sublist in final_list for item in sublist]
+            final_df = pd.DataFrame(flat_data, columns=['bearing', 'rangeLine', 'Intensity', 
+                                    'distance (m)', 'time', 'heading', 
+                                    'pitch', 'roll'])
+
+            final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', index=False)
+            
+            threshold += 5
+
+            del final_df 
+            del flat_data
+
+            final_list = []
 
     oculusBinary.close()
 
@@ -206,56 +224,46 @@ def binaryConverter(binary):
 
     return [binary_map[i] for i in nibbleReader(binary)]
 
-def bearings(data, bearingStart, numBearings):
-    dfb = pd.DataFrame([0],  columns =  ["bearings"]) # 0 is a placeholder value that gets overwritten by the first bearing
-    n = 0
-    bearings = []
+def bearings(data, bearingStart, numBearings): 
+    n = 0 
+    bearings = [] 
+    for i in range(numBearings): 
+        x = data[bearingStart + n:bearingStart + n + 2] 
+        data_format = "<h" 
+        bearing = struct.unpack(data_format, x)[0] / 100 
+        bearings.append(bearing) 
+        n += 2 
+    return bearings 
+    
+def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, roll, bearings): 
+    payloadStart = position + 2136 
+    all_data = [] 
 
-    for i in range(numBearings):
-        x = data[bearingStart+n:bearingStart+n+2]
-        data_format = "<h"
-        bearing = struct.unpack(data_format, x)[0]/100
-        bearings.append(bearing)
-        n += 2
-
-    dfb = pd.DataFrame(bearings, columns=["bearings"])
-
-    return dfb
-
-def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, roll, dfb):
-
-    payloadStart = position + 2136
-    dfList = [dfb] 
     for i in range(rangeCount): 
         intensities = [] 
 
         for v in range(128): 
-            x = data[payloadStart + i*128 + v: payloadStart + i*128 + v + 1] 
-            sonar = struct.unpack("<B", x)[0]
-            b = format(sonar, '08b')
-            nibble = binaryConverter(str(b))
-            for f in nibble:
-                intensities.append(f) 
-        df = pd.DataFrame(intensities, columns=[f'{i+1}']) 
-        dfList.append(df) 
+            x = data[payloadStart + i * 128 + v: payloadStart + i * 128 + v + 1] 
+            sonar = struct.unpack("<B", x)[0] 
+            b = format(sonar, '08b') 
+            nibble = binaryConverter(str(b)) 
+            intensities.extend(nibble) 
+            
+        all_data.append(intensities) 
 
-    dfc = pd.concat(dfList, axis=1)
+    out_data = [] 
 
-    new_data = [] 
-    for index, row in dfc.iloc[1:].iterrows():  
-        max_value = row.iloc[2:].max()
-        if max_value > 14:
-            max_col_header = row.iloc[1:].idxmax()
-            new_row = [row.iloc[0], max_col_header, max_value, (int(max_col_header)*rangeResolution), time, heading, pitch, roll] 
-            new_data.append(new_row)
-        else:
-            pass
+    for i, bearing in enumerate(bearings): 
+        if i < len(all_data): 
+            intensities = all_data[i] 
+            if len(intensities) > 2: 
+                max_value = max(intensities[2:]) 
+                if max_value > 14: 
+                    max_col_index = intensities[2:].index(max_value) + 2 
+                    new_row = [bearing, max_col_index, max_value, (max_col_index * rangeResolution), time, heading, pitch, roll] 
+                    out_data.append(new_row)
     
-    new_columns = ['bearing', 'rangeLine', 'Intensity', 'distance (m)', 'time', 'heading', 'pitch', 'roll'] 
-
-    out_df = pd.DataFrame(new_data, columns=new_columns)
-    
-    return out_df
+    return out_data
 
 if __name__ == "__main__":
     main()
