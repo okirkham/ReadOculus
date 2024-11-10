@@ -3,11 +3,15 @@ import pandas as pd
 from datetime import datetime, timezone
 import numpy as np
 import os 
+import math
+from pyproj import Proj, transform
+import io
 
 base_path = r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\sonar" 
-filename = "Oculus_20230717_181225.oculus.old"
+binaryfile = "Oculus_20230717_181225.oculus.old"
 
-oculus = os.path.join(base_path, filename)
+oculus = os.path.join(base_path, binaryfile)
+metadata =  r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\combined_log.csv"
 
 def main():
     oculusBinary = open(oculus, mode='rb')
@@ -15,7 +19,7 @@ def main():
     sonarData = oculusBinary.read()
     fileSize = len(sonarData)
 
-    # define constant value sizes
+    # define constant value sizes 
     position = 48
     logSize = 242
     bearingStart = position + logSize
@@ -42,7 +46,7 @@ def main():
     final_list = []
 
     # create chunk processing threshold
-    threshold = 5
+    threshold = 1
 
     for item in range(0,numItems):
         if position + logSize > fileSize: 
@@ -72,20 +76,33 @@ def main():
             print(f'{progress}% complete')
             flat_data = [item for sublist in final_list for item in sublist]
             final_df = pd.DataFrame(flat_data, columns=['bearing', 'rangeLine', 'Intensity', 
-                                    'distance (m)', 'time', 'heading', 
+                                    'distance (m)', 'timestamp', 'heading', 
                                     'pitch', 'roll'])
+            
+            entire_metadf = pd.read_csv(metadata, encoding = "utf-8", sep=',')
+            metadf = entire_metadf.loc[[0,1,2,3,4,6,10]]
 
-            if threshold == 5:
+            metadf['timestamp'] = pd.to_datetime(metadf['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+            final_df['timestamp'] = pd.to_datetime(final_df['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+
+            final_df = final_df.sort_values('timestamp') 
+            metadf = metadf.sort_values('timestamp') 
+
+            merged = pd.merge_asof(final_df, metadf, on='timestamp', tolerance=pd.Timedelta('250ms'), direction='nearest')
+
+            # clearing memory
+            final_list = []
+            #del final_df 
+            del flat_data
+            del metadf
+
+            if threshold == 1:
                 final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', index=False)
             else:
-                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', header=False, index=False)
+                merged.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', header=False, index=False)
 
-            threshold += 5
-
-            del final_df 
-            del flat_data
-
-            final_list = []
+            threshold += 1
+            del merged
 
     oculusBinary.close()
 
@@ -271,6 +288,35 @@ def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, r
                     out_data.append(new_row)
     
     return out_data
+
+def add_bearings(bearing1, bearing2): 
+    result = (bearing1 + bearing2) % 360 
+    if result < 0: 
+        result += 360 
+    
+    return result
+
+def find_adjacent(distance, bearing): 
+    bearingRadians = math.radians(bearing) 
+    adjacent = distance * math.cos(bearingRadians) 
+    return adjacent
+
+def find_opposite(distance, bearing): 
+    bearingRadians = math.radians(bearing) 
+    opposite = distance * math.sin(bearingRadians) 
+    return opposite
+
+def latlon_to_utm(lat, lon, zone): 
+    wgs84 = Proj(init='epsg:4326') # WGS84 latitude and longitude 
+    utm = Proj(proj='utm', zone=zone, ellps='WGS84')
+    easting, northing = transform(wgs84, utm, lon, lat) 
+    return easting, northing
+
+def get_utm_zone(lon): 
+    return int((lon + 180) // 6) + 1
+
+#def procesSonar(row):
+
 
 if __name__ == "__main__":
     main()
