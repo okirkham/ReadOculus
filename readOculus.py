@@ -76,14 +76,14 @@ def main():
             print(f'{progress}% complete')
             flat_data = [item for sublist in final_list for item in sublist]
             final_df = pd.DataFrame(flat_data, columns=['bearing', 'rangeLine', 'Intensity', 
-                                    'distance (m)', 'timestamp', 'heading', 
+                                    'distance', 'timestamp', 'heading', 
                                     'pitch', 'roll'])
             
             entire_metadf = pd.read_csv(metadata, encoding = "utf-8", sep=',')
             metadf = entire_metadf.loc[[0,1,2,3,4,6,10]]
 
-            metadf['timestamp'] = pd.to_datetime(metadf['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
-            final_df['timestamp'] = pd.to_datetime(final_df['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+            #metadf['timestamp'] = pd.to_datetime(metadf['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+            #final_df['timestamp'] = pd.to_datetime(final_df['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
 
             final_df = final_df.sort_values('timestamp') 
             metadf = metadf.sort_values('timestamp') 
@@ -92,12 +92,12 @@ def main():
 
             # clearing memory
             final_list = []
-            #del final_df 
+            del final_df 
             del flat_data
             del metadf
 
             if threshold == 1:
-                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', index=False)
+                merged.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', index=False)
             else:
                 merged.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', header=False, index=False)
 
@@ -315,8 +315,9 @@ def latlon_to_utm(lat, lon, zone):
 def get_utm_zone(lon): 
     return int((lon + 180) // 6) + 1
 
-#def procesSonar(row):
-
+# def procesSonar(row):
+#     bearing = row[0] 
+#     heading = 
 
 if __name__ == "__main__":
     main()
