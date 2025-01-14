@@ -46,7 +46,7 @@ def main():
     final_list = []
 
     # create chunk processing threshold
-    threshold = 1
+    threshold = 10
 
     for item in range(0,numItems):
         if position + logSize > fileSize: 
@@ -75,7 +75,7 @@ def main():
         if progress > threshold:
             print(f'{progress}% complete')
             flat_data = [item for sublist in final_list for item in sublist]
-            final_df = pd.DataFrame(flat_data, columns=['bearing', 'rangeLine', 'Intensity', 
+            final_df = pd.DataFrame(flat_data, columns=['bearing', 'rangeLine', 'rangeResolution', 'Intensity', 
                                     'distance', 'timestamp', 'heading', 
                                     'pitch', 'roll'])
             
@@ -88,21 +88,22 @@ def main():
             final_df = final_df.sort_values('timestamp') 
             metadf = metadf.sort_values('timestamp') 
 
-            merged = pd.merge_asof(final_df, metadf, on='timestamp', tolerance=pd.Timedelta('250ms'), direction='nearest')
+            #merged = pd.merge_asof(final_df, metadf, on='timestamp', tolerance=pd.Timedelta('250ms'), direction='nearest')
 
             # clearing memory
             final_list = []
-            del final_df 
+            #del final_df 
             del flat_data
             del metadf
 
-            if threshold == 1:
-                merged.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', index=False)
+            if threshold == 10:
+                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_181225_processed.csv", mode = 'a', index=False)
             else:
-                merged.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_20230717_181225.csv", mode = 'a', header=False, index=False)
+                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_181225_processed.csv", mode = 'a', header=False, index=False)
 
-            threshold += 1
-            del merged
+            threshold += 10
+            #del merged
+            del final_df
 
     oculusBinary.close()
 
@@ -284,7 +285,7 @@ def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, r
                 max_value = max(intensities[2:]) 
                 if max_value > 14: 
                     max_col_index = intensities[2:].index(max_value) + 2 
-                    new_row = [bearing, max_col_index, max_value, (max_col_index * rangeResolution), time, heading, pitch, roll] 
+                    new_row = [bearing, max_col_index, rangeResolution, max_value, (max_col_index * rangeResolution), time, heading, pitch, roll] 
                     out_data.append(new_row)
     
     return out_data
