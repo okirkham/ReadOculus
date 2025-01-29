@@ -7,11 +7,22 @@ import math
 from pyproj import Proj, transform
 import io
 
-base_path = r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\sonar" 
-binaryfile = "Oculus_20230717_181225.oculus.old"
+# set oculus path
+base_path = r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\sonar"
+binaryfile = "Oculus_20250129_170117.oculus"
 
 oculus = os.path.join(base_path, binaryfile)
-metadata =  r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\combined_log.csv"
+
+# merge combined_log and dvl_deadreckoning_log
+combined = pd.read_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\data\combined_log.csv")
+deadreckoning = pd.read_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\data\peripheral\dvl_deadreckoning_log.csv")
+
+data_column = combined[['timestamp', 'heading (°)']]
+
+merged_csv = pd.merge(deadreckoning, data_column, on='timestamp', how='left')
+
+merged_csv.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\data\peripheral\merged.csv", index=False)
+
 
 def main():
     oculusBinary = open(oculus, mode='rb')
@@ -79,14 +90,14 @@ def main():
                                     'distance', 'timestamp', 'heading', 
                                     'pitch', 'roll'])
             
-            entire_metadf = pd.read_csv(metadata, encoding = "utf-8", sep=',')
-            metadf = entire_metadf.loc[[0,1,2,3,4,6,10]]
+            #entire_metadf = pd.read_csv(merged_csv, encoding = "utf-8", sep=',')
+            #metadf = merged_csv.loc[[0,1,2,3,5,6,7,13]]
 
             #metadf['timestamp'] = pd.to_datetime(metadf['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
             #final_df['timestamp'] = pd.to_datetime(final_df['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
 
             final_df = final_df.sort_values('timestamp') 
-            metadf = metadf.sort_values('timestamp') 
+            #metadf = metadf.sort_values('timestamp') 
 
             #merged = pd.merge_asof(final_df, metadf, on='timestamp', tolerance=pd.Timedelta('250ms'), direction='nearest')
 
@@ -94,19 +105,18 @@ def main():
             final_list = []
             #del final_df 
             del flat_data
-            del metadf
+            #del metadf
 
             if threshold == 10:
-                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_181225_processed.csv", mode = 'a', index=False)
+                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\sonar\Oculus_20250129_170117.csv", mode = 'a', index=False)
             else:
-                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2023-07-17_18-12-24\Oculus_181225_processed.csv", mode = 'a', header=False, index=False)
+                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\sonar\Oculus_20250129_170117.csv", mode = 'a', header=False, index=False)
 
             threshold += 10
             #del merged
             del final_df
 
     oculusBinary.close()
-
 
 def header(data):
     data_length = 48
