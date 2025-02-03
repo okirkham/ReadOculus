@@ -88,7 +88,10 @@ def main():
             else:
                 final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\sonar\Oculus_20250129_170117.csv", mode = 'a', header=False, index=False)
 
-            threshold += 10
+            if threshold < 90:
+                threshold += 10
+            else:
+                threshold += 1
             #del merged
             del final_df
 
