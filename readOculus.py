@@ -250,7 +250,6 @@ def bearings(data, bearingStart, numBearings):
         bearing = struct.unpack(data_format, x)[0] / 100 
         bearings.append(bearing) 
         n += 2 
-    print(bearings)
     return bearings 
     
 def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, roll, bearings): 
@@ -276,7 +275,7 @@ def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, r
             intensities = all_data[i] 
             if len(intensities) > 2: 
                 max_value = max(intensities[2:]) 
-                if max_value > 14: 
+                if max_value > 9: 
                     max_col_index = intensities[2:].index(max_value) + 2 
                     new_row = [bearing, max_col_index, rangeResolution, max_value, (max_col_index * rangeResolution), time, heading, pitch, roll] 
                     out_data.append(new_row)
