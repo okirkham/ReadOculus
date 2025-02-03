@@ -1,11 +1,7 @@
 import struct
 import pandas as pd
 from datetime import datetime, timezone
-import numpy as np
 import os 
-import math
-from pyproj import Proj, transform
-import io
 
 # set oculus path
 base_path = r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\sonar"
@@ -240,6 +236,9 @@ def binaryConverter(binary):
     return [binary_map[i] for i in nibbleReader(binary)]
 
 def bearings(data, bearingStart, numBearings): 
+    '''
+    Make a list of sonar bearings
+    '''
     n = 0 
     bearings = [] 
     for i in range(numBearings): 
@@ -248,6 +247,7 @@ def bearings(data, bearingStart, numBearings):
         bearing = struct.unpack(data_format, x)[0] / 100 
         bearings.append(bearing) 
         n += 2 
+    print(bearings)
     return bearings 
     
 def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, roll, bearings): 
