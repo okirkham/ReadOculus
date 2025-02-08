@@ -16,9 +16,27 @@ merged = pd.merge_asof(oculus, XYZ, on='timestamp', tolerance=pd.Timedelta('50ms
 
 merged = merged.dropna(subset=['x (m)'])
 
-merged.to_csv(r"C:\Users\0w3nk\Documents\ROV\merged", mode = 'a', index=False)
+def add_bearings(bearing1, bearing2): 
+    result = (bearing1 + bearing2) % 360 
+    if result < 0: 
+        result += 360 
+    
+    return result
 
-print("done")
+def Rypr(y, p, r):
+    '''
+    Rotation matrix y=heading, p=pitch, r=roll in degrees
+    '''
+    # from Degree to Radians
+    y = y*np.pi/180.0
+    p = p*np.pi/180.0
+    r = r*np.pi/180.0
+    
+    Rr = np.matrix([[1.0, 0.0, 0.0],[0.0, np.cos(r), -np.sin(r)],[0.0, np.sin(r), np.cos(r)]])
+    Rp = np.matrix([[np.cos(p), 0.0, np.sin(p)],[0.0, 1.0, 0.0],[-np.sin(p), 0.0, np.cos(p)]])
+    Ry = np.matrix([[np.cos(y), -np.sin(y), 0.0],[np.sin(y), np.cos(y), 0.0],[0.0, 0.0, 1.0]])
+    
+    return Ry*Rp*Rr
 
 # # Extract x, y, and z coordinates
 # x = [point[0] for point in points]
