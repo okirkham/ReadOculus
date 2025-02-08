@@ -3,11 +3,26 @@ import pandas as pd
 from datetime import datetime, timezone
 import os 
 
-# set oculus path
-base_path = r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\sonar"
-binaryfile = "Oculus_20250129_170117.oculus"
+# input misson package path
+base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_13-44-47"
 
-oculus = os.path.join(base_path, binaryfile)
+sonar = os.path.join(base_path, "sonar")
+
+def find_oculus(path):
+    # Iterate over all files in the specified folder
+    for file_name in os.listdir(path):
+        # Check if the file has the specified extension
+        if file_name.endswith(".oculus"):
+            return file_name
+
+binaryfile = find_oculus(sonar)
+
+oculus = os.path.join(base_path, "sonar", binaryfile)
+
+# create output csv path
+out_csv_name = binaryfile.replace("oculus", "csv")
+
+out_csv = os.path.join(base_path, "sonar", out_csv_name)
 
 def main():
     oculusBinary = open(oculus, mode='rb')
@@ -84,9 +99,9 @@ def main():
             #del metadf
 
             if threshold == 10:
-                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\sonar\Oculus_20250129_170117.csv", mode = 'a', index=False)
+                final_df.to_csv(out_csv, mode = 'a', index=False)
             else:
-                final_df.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\sonar\Oculus_20250129_170117.csv", mode = 'a', header=False, index=False)
+                final_df.to_csv(out_csv, mode = 'a', header=False, index=False)
 
             if threshold < 90:
                 threshold += 10
@@ -261,7 +276,10 @@ def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, r
 
         for v in range(128): 
             x = data[payloadStart + i * 128 + v: payloadStart + i * 128 + v + 1] 
-            sonar = struct.unpack("<B", x)[0] 
+            try:
+                sonar = struct.unpack("<B", x)[0] 
+            except struct.error:
+                pass
             b = format(sonar, '08b') 
             nibble = binaryConverter(str(b)) 
             intensities.extend(nibble) 
