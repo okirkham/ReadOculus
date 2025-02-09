@@ -279,6 +279,7 @@ def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, r
             try:
                 sonar = struct.unpack("<B", x)[0] 
             except struct.error:
+                print("100% complete")
                 pass
             b = format(sonar, '08b') 
             nibble = binaryConverter(str(b)) 
