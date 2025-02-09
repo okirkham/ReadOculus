@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import os 
 
 # input misson package path
-base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_13-44-47"
+base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_14-01-04"
 
 sonar = os.path.join(base_path, "sonar")
 
@@ -69,13 +69,10 @@ def main():
         rangeCount = sonarMeta['rangeCount'].values[0]
         rangeResolution = sonarMeta['rangeResolution'].values[0]
         time = sonarMeta['time'].values[0]
-        heading = sonarMeta['heading'].values[0]
-        pitch = sonarMeta['pitch'].values[0]
-        roll = sonarMeta['roll'].values[0]
         messageSize = sonarMeta['messageSize'].values[0]
 
         # extract sonar data for item
-        dataList = payload(sonarData, rangeCount, rangeResolution, time, position, heading, pitch, roll, bearingList)
+        dataList = payload(sonarData, rangeCount, rangeResolution, time, position, bearingList)
 
         position = position + messageSize + 40
         
@@ -87,8 +84,7 @@ def main():
             print(f'{progress}% complete')
             flat_data = [item for sublist in final_list for item in sublist]
             final_df = pd.DataFrame(flat_data, columns=['bearing', 'rangeLine', 'rangeResolution', 'Intensity', 
-                                    'distance', 'timestamp', 'heading', 
-                                    'pitch', 'roll'])
+                                    'distance', 'timestamp'])
 
             final_df = final_df.sort_values('timestamp') 
 
@@ -267,7 +263,7 @@ def bearings(data, bearingStart, numBearings):
         n += 2 
     return bearings 
     
-def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, roll, bearings): 
+def payload(data, rangeCount, rangeResolution, time, position, bearings): 
     payloadStart = position + 2136 
     all_data = [] 
 
@@ -296,7 +292,7 @@ def payload(data, rangeCount, rangeResolution, time, position, heading, pitch, r
                 max_value = max(intensities[2:]) 
                 if max_value > 9: 
                     max_col_index = intensities[2:].index(max_value) + 2 
-                    new_row = [bearing, max_col_index, rangeResolution, max_value, (max_col_index * rangeResolution), time, heading, pitch, roll] 
+                    new_row = [bearing, max_col_index, rangeResolution, max_value, (max_col_index * rangeResolution), time] 
                     out_data.append(new_row)
     
     return out_data

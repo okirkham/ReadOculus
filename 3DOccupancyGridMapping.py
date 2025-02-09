@@ -1,18 +1,57 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
+import os
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-deadReckoning = pd.read_csv(r"C:\Users\0w3nk\OneDrive - Carleton University\January 29th, ROV Pool Tests\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\data\peripheral\dvl_deadreckoning_log.csv", encoding = "utf-8", sep=',')
-oculus = pd.read_csv(r"C:\Users\0w3nk\Documents\ROV\Oculus_20250129_170117.csv", encoding = "utf-8", sep=',')
+# base path of 
+base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_14-01-04"
 
-XYZ = deadReckoning.iloc[:, 0:4]
+# dead reckoning file
+deadReckoningFolder = "data\peripheral\dvl_deadreckoning_log.csv"
 
-XYZ['timestamp'] = pd.to_datetime(XYZ['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
-oculus['timestamp'] = pd.to_datetime(oculus['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+deadReckoningPath = os.path.join(base_path, deadReckoningFolder)
 
-merged = pd.merge_asof(oculus, XYZ, on='timestamp', tolerance=pd.Timedelta('50ms'), direction='nearest')
+deadReckoning = pd.read_csv(deadReckoningPath, encoding = "utf-8", sep=',')
+
+# oculus file
+def find_csv(path):
+    # Iterate over all files in the specified folder
+    for file_name in os.listdir(path):
+        # Check if the file has the specified extension
+        if file_name.endswith(".csv"):
+            return file_name
+        
+sonar = os.path.join(base_path, "sonar")
+
+csvFile = find_csv(sonar)
+
+csvPath = os.path.join(base_path, "sonar", csvFile)
+
+oculus_csv = pd.read_csv(csvPath, encoding = "utf-8", sep=',')
+
+# combined log
+combined_folder = "data\combined_log.csv"
+
+combined_path = os.path.join(base_path, combined_folder)
+
+combined = pd.read_csv(combined_path, encoding = "utf-8", sep=',')
+
+# add heading data to dead reckoning file
+data_column = combined[['timestamp', 'heading (°)']]
+
+deadReckoningCombined= pd.merge(deadReckoning, data_column, on='timestamp', how='left')
+                     
+# merge dead reckoning file and oculus csv file based on time stamp
+columns_to_keep = ['timestamp', 'x (m)', 'y (m)', 'z (m)', 'roll (°)', 'pitch (°)', 'heading (°)']
+xyz = deadReckoningCombined[columns_to_keep]
+xyz = xyz.copy()
+xyz['timestamp'] = pd.to_datetime(xyz['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+oculus_csv['timestamp'] = pd.to_datetime(oculus_csv['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+
+merged = pd.merge_asof(oculus_csv, xyz, on='timestamp', tolerance=pd.Timedelta('50ms'), direction='nearest')
 
 merged = merged.dropna(subset=['x (m)'])
 

@@ -4,15 +4,15 @@ from pyproj import Proj, transform
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-# merge combined_log and dvl_deadreckoning_log
-# combined = pd.read_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\data\combined_log.csv")
-# deadreckoning = pd.read_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\data\peripheral\dvl_deadreckoning_log.csv")
+#merge combined_log and dvl_deadreckoning_log
+combined = pd.read_csv(r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_13-54-26\data\combined_log.csv")
+deadreckoning = pd.read_csv(r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_13-54-26\data\peripheral\dvl_deadreckoning_log.csv")
 
-# data_column = combined[['timestamp', 'heading (°)']]
+data_column = combined[['timestamp', 'heading (°)']]
 
-# merged_csv = pd.merge(deadreckoning, data_column, on='timestamp', how='left')
+merged_csv = pd.merge(deadreckoning, data_column, on='timestamp', how='left')
 
-# merged_csv.to_csv(r"C:\Users\0w3nk\Documents\Masters\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-01-29_17-01-17\data\peripheral\merged.csv", index=False)
+print(merged_csv)
 
 # #entire_metadf = pd.read_csv(merged_csv, encoding = "utf-8", sep=',')
 # #metadf = merged_csv.loc[[0,1,2,3,5,6,7,13]]
@@ -53,31 +53,31 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 
-# Sample data points
-points = [
-    (-1, 2, 3),
-    (4, 5, 6),
-    (7, 8, 9),
-    (10, 11, 12),
-    (13, 14, 15)
-]
+# # Sample data points
+# points = [
+#     (-1, 2, 3),
+#     (4, 5, 6),
+#     (7, 8, 9),
+#     (10, 11, 12),
+#     (13, 14, 15)
+# ]
 
-# Create a 3D plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+# # Create a 3D plot
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
 
-# Extract x, y, and z coordinates
-x = [point[0] for point in points]
-y = [point[1] for point in points]
-z = [point[2] for point in points]
+# # Extract x, y, and z coordinates
+# x = [point[0] for point in points]
+# y = [point[1] for point in points]
+# z = [point[2] for point in points]
 
-# Plot points
-ax.scatter(x, y, z, c='b', marker='o')
+# # Plot points
+# ax.scatter(x, y, z, c='b', marker='o')
 
-# Set labels
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_zlabel('Z')
+# # Set labels
+# ax.set_xlabel('X')
+# ax.set_ylabel('Y')
+# ax.set_zlabel('Z')
 
-# Show plot
-plt.show()
+# # Show plot
+# plt.show()
