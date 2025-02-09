@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import os 
 
 # input misson package path
-base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_14-01-04"
+base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_14-19-17"
 
 sonar = os.path.join(base_path, "sonar")
 
@@ -276,7 +276,6 @@ def payload(data, rangeCount, rangeResolution, time, position, bearings):
                 sonar = struct.unpack("<B", x)[0] 
             except struct.error:
                 print("100% complete")
-                exit
             b = format(sonar, '08b') 
             nibble = binaryConverter(str(b)) 
             intensities.extend(nibble) 
@@ -290,7 +289,7 @@ def payload(data, rangeCount, rangeResolution, time, position, bearings):
             intensities = all_data[i] 
             if len(intensities) > 2: 
                 max_value = max(intensities[2:]) 
-                if max_value > 9: 
+                if max_value > 1: 
                     max_col_index = intensities[2:].index(max_value) + 2 
                     new_row = [bearing, max_col_index, rangeResolution, max_value, (max_col_index * rangeResolution), time] 
                     out_data.append(new_row)
