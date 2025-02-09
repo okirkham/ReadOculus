@@ -3,9 +3,6 @@ import pandas as pd
 import numpy as np
 import os
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
 # base path of 
 base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_14-19-17"
 
@@ -68,47 +65,80 @@ def round_to_nearest_half_meter(value):
     return round(value * 2) / 2
 
 def calculate_cartesian_coordinates(df):
-    # Convert pitch, roll, and heading to radians
-    df['pitch_rad'] = np.deg2rad(df['pitch (°)'])
-    df['roll_rad'] = np.deg2rad(df["roll (°)"])
-    df['heading_rad'] = np.deg2rad(df['combined_bearing'])
+    x, y, z = df['x (m)'], df['y (m)'], df['z (m)']
+    heading, pitch, roll = df['heading (°)'], df['pitch (°)'], df['roll (°)']
+    distance = df['distance']
+    
+    # Convert angles from degrees to radians
+    heading_rad = np.radians(heading)
+    pitch_rad = np.radians(pitch)
+    roll_rad = np.radians(roll)
+    
+    # Rotation matrix for heading (yaw)
+    R_heading = np.array([
+        [np.cos(heading_rad), -np.sin(heading_rad), 0],
+        [np.sin(heading_rad), np.cos(heading_rad), 0],
+        [0, 0, 1]
+    ])
+    
+    # Rotation matrix for pitch
+    R_pitch = np.array([
+        [np.cos(pitch_rad), 0, np.sin(pitch_rad)],
+        [0, 1, 0],
+        [-np.sin(pitch_rad), 0, np.cos(pitch_rad)]
+    ])
+    
+    # Rotation matrix for roll
+    R_roll = np.array([
+        [1, 0, 0],
+        [0, np.cos(roll_rad), -np.sin(roll_rad)],
+        [0, np.sin(roll_rad), np.cos(roll_rad)]
+    ])
+    
+    # Combined rotation matrix
+    R_combined = R_heading @ R_pitch @ R_roll
+    
+    # Direction vector of the sonar ping in local coordinates (x = 0, y = 0, z = -distance along z-axis)
+    direction_local = np.array([0, 0, -distance])  # Assume the ping starts directly along the z-axis
+    
+    # Rotate the direction vector by the combined rotation matrix
+    direction_rotated = R_combined @ direction_local
+    
+    # Add the sonar's position to the rotated direction to get the final ping coordinates
+    ping_coordinates = np.array([x, y, z]) + direction_rotated
+    
+    return ping_coordinates
 
-    # Calculate the Cartesian coordinates
-    df['sonar_x'] = df["x (m)"] + df['distance'] * (
-        np.cos(df['pitch_rad']) * np.cos(df['heading_rad'])
-    )
-    df['sonar_y'] = df['y (m)'] + df['distance'] * (
-        np.cos(df['pitch_rad']) * np.sin(df['heading_rad'])
-    )
-    df['sonar_z'] = df['z (m)'] + df['distance'] * np.sin(df['pitch_rad'])
+merged[['ping_x', 'ping_y', 'ping_z']] = pd.DataFrame(merged.apply(calculate_cartesian_coordinates, axis=1).tolist(), index=merged.index)
 
+def pointProbability(df):
     # Round the coordinates
-    df['sonar_x'] = df['sonar_x'].apply(round_to_nearest_half_meter)
-    df['sonar_y'] = df['sonar_y'].apply(round_to_nearest_half_meter)
-    df['sonar_z'] = df['sonar_z'].apply(round_to_nearest_half_meter)
+    df['ping_x'] = df['ping_x'].apply(round_to_nearest_half_meter)
+    df['ping_y'] = df['ping_y'].apply(round_to_nearest_half_meter)
+    df['ping_z'] = df['ping_z'].apply(round_to_nearest_half_meter)
 
     # Add the probability column with default value 0
     df['probability'] = 0
 
     # Check for duplicate coordinates and add 1 to probability for each duplicate
-    duplicates = df.duplicated(subset=['sonar_x', 'sonar_y', 'sonar_z'], keep=False)
+    duplicates = df.duplicated(subset=['ping_x', 'ping_y', 'ping_z'], keep=False)
     df.loc[duplicates, 'probability'] += 1
 
     # Remove duplicates keeping the first occurrence
-    df = df.drop_duplicates(subset=['sonar_x', 'sonar_y', 'sonar_z'])
+    df = df.drop_duplicates(subset=['ping_x', 'ping_y', 'ping_z'])
 
-    return df[['sonar_x', 'sonar_y', 'sonar_z', 'probability']]
+    return df[['ping_x', 'ping_y', 'ping_z', 'probability']]
 
-coords = calculate_cartesian_coordinates(merged)
+coords = pointProbability(merged)
 
 print(coords)
 
 filtered_points = coords[coords['probability'] >= 1]
 
 # Extract x, y, and z coordinates
-x = filtered_points['sonar_x']
-y = filtered_points['sonar_y']
-z = filtered_points['sonar_z']
+x = filtered_points['ping_x']
+y = filtered_points['ping_y']
+z = filtered_points['ping_z']
 
 # Plot points
 fig = plt.figure()
