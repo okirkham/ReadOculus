@@ -3,28 +3,21 @@ import pandas as pd
 from datetime import datetime, timezone
 import os 
 
-# input misson package path
-base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_14-19-17"
-
-sonar = os.path.join(base_path, "sonar")
-
-def find_oculus(path):
-    # Iterate over all files in the specified folder
-    for file_name in os.listdir(path):
-        # Check if the file has the specified extension
-        if file_name.endswith(".oculus"):
-            return file_name
-
-binaryfile = find_oculus(sonar)
-
-oculus = os.path.join(base_path, "sonar", binaryfile)
-
-# create output csv path
-out_csv_name = binaryfile.replace("oculus", "csv")
-
-out_csv = os.path.join(base_path, "sonar", out_csv_name)
-
 def main():
+    # input misson package path
+    base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_14-19-17"
+
+    sonar = os.path.join(base_path, "sonar")
+
+    binaryfile = find_oculus(sonar)
+
+    oculus = os.path.join(base_path, "sonar", binaryfile)
+
+    # create output csv path
+    out_csv_name = binaryfile.replace("oculus", "csv")
+
+    out_csv = os.path.join(base_path, "sonar", out_csv_name)
+
     oculusBinary = open(oculus, mode='rb')
 
     sonarData = oculusBinary.read()
@@ -107,6 +100,13 @@ def main():
             del final_df
 
     oculusBinary.close()
+
+def find_oculus(path):
+    # Iterate over all files in the specified folder
+    for file_name in os.listdir(path):
+        # Check if the file has the specified extension
+        if file_name.endswith(".oculus"):
+            return file_name
 
 def header(data):
     data_length = 48
