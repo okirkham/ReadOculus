@@ -48,7 +48,7 @@ def main():
     merged['combined_bearing'] = merged.apply(lambda row: add_bearings(row['bearing'], row['heading (°)']), axis=1)
 
     # Apply the function to each row and assign the result to the DataFrame
-    merged[['ping_x', 'ping_y', 'ping_z']] = merged.apply(calculate_cartesian_coordinates, axis=1)
+    merged[['ping_x', 'ping_y', 'ping_z']] = merged.apply(calculate_cartesian_coordinates1, axis=1)
 
     coords = pointProbability(merged)
 
@@ -97,7 +97,7 @@ def add_bearings(bearing1, bearing2):
 def round_to_nearest_half_meter(value):
     return round(value * 2) / 2
 
-def calculate_cartesian_coordinates(row):
+def calculate_cartesian_coordinates1(row):
     # Extract values for a single row
     x, y, z = row['x (m)'], row['y (m)'], row['z (m)']
     heading, pitch, roll = row['heading (°)'], row['pitch (°)'], row['roll (°)']
@@ -137,6 +137,65 @@ def calculate_cartesian_coordinates(row):
         
     # Rotate the direction vector by the combined rotation matrix
     direction_rotated = R_combined @ direction_local
+        
+    # Add the sonar's position to the rotated direction to get the final ping coordinates
+    ping_coordinates = np.array([x, y, z]) + direction_rotated
+        
+    # Return the ping coordinates as a Series
+    return pd.Series(ping_coordinates)
+
+def calculate_cartesian_coordinates2(row):
+    # Extract values for a single row
+    x, y, z = row['x (m)'], row['y (m)'], row['z (m)']
+    heading, pitch, roll = row['heading (°)'], row['pitch (°)'], row['roll (°)']
+    distance = row['distance']
+        
+    # Convert angles from degrees to radians
+    heading_rad = np.radians(heading)
+    pitch_rad = np.radians(pitch)
+    roll_rad = np.radians(roll)
+        
+    # Rotation matrix for heading (yaw)
+    R_heading = np.array([
+        [np.cos(heading_rad), -np.sin(heading_rad), 0],
+        [np.sin(heading_rad), np.cos(heading_rad), 0],
+        [0, 0, 1]
+    ])
+        
+    # Rotation matrix for pitch
+    R_pitch = np.array([
+        [np.cos(pitch_rad), 0, np.sin(pitch_rad)],
+        [0, 1, 0],
+        [-np.sin(pitch_rad), 0, np.cos(pitch_rad)]
+    ])
+        
+    # Rotation matrix for roll
+    R_roll = np.array([
+        [1, 0, 0],
+        [0, np.cos(roll_rad), -np.sin(roll_rad)],
+        [0, np.sin(roll_rad), np.cos(roll_rad)]
+    ])
+        
+    # Combined rotation matrix
+    R_combined = R_heading @ R_pitch @ R_roll
+        
+    # Direction vector of the sonar ping in local coordinates (x = 0, y = 0, z = -distance along z-axis)
+    direction_local = np.array([0, 0, -distance])  # Assume the ping starts directly along the z-axis
+        
+    # Rotate the direction vector by the combined rotation matrix
+    direction_rotated = R_combined @ direction_local
+        
+    # Update coordinates based on the heading
+    if 270 <= heading <= 90:  # North (negative y)
+        y -= distance
+    elif 90 <= heading <= 270:  # South (positive y)
+        y += distance
+        
+    if 180 <= heading < 360 or 0 <= heading < 180:  # West (negative x) or East (positive x)
+        if heading > 180:  # Heading between 180 and 360 -> West
+            x -= distance
+        else:  # Heading between 0 and 180 -> East
+            x += distance
         
     # Add the sonar's position to the rotated direction to get the final ping coordinates
     ping_coordinates = np.array([x, y, z]) + direction_rotated
