@@ -99,6 +99,7 @@ def main():
             #del merged
             del final_df
 
+    print('100% complete')
     oculusBinary.close()
 
 def find_oculus(path):
@@ -181,7 +182,7 @@ def sonarLogHeader(data, start, logSize):
     data_payload[34]                                     # 
     data_payload[35]                                     # 
     data_payload[36]                                     # rangeResolution
-    data_payload[37]                                     # 
+    data_payload[37]                                     # rangeCount
     data_payload[38]                                     # 
     data_payload[39]                                     # 
     data_payload[40]                                     #   
@@ -266,16 +267,16 @@ def bearings(data, bearingStart, numBearings):
 def payload(data, rangeCount, rangeResolution, time, position, bearings): 
     payloadStart = position + 2136 
     all_data = [] 
+    filterVal = int(rangeCount/5)
 
     for i in range(rangeCount): 
         intensities = [] 
-
         for v in range(128): 
             x = data[payloadStart + i * 128 + v: payloadStart + i * 128 + v + 1] 
             try:
                 sonar = struct.unpack("<B", x)[0] 
             except struct.error:
-                print("100% complete")
+                pass
             b = format(sonar, '08b') 
             nibble = binaryConverter(str(b)) 
             intensities.extend(nibble) 
@@ -288,7 +289,7 @@ def payload(data, rangeCount, rangeResolution, time, position, bearings):
         if i < len(all_data): 
             intensities = all_data[i] 
             if len(intensities) > 2: 
-                max_value = max(intensities[2:]) 
+                max_value = max(intensities[filterVal:]) 
                 if max_value > 1: 
                     max_col_index = intensities[2:].index(max_value) + 2 
                     new_row = [bearing, max_col_index, rangeResolution, max_value, (max_col_index * rangeResolution), time] 

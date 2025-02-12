@@ -1,106 +1,97 @@
 import numpy as np
 import pandas as pd
+import math
+
+def compute_beam_pitch_and_heading(initial_pitch, roll, beam_bearing, initial_heading):
+    # Convert degrees to radians
+    pitch_rad = math.radians(initial_pitch)
+    roll_rad = math.radians(roll)
+    bearing_rad = math.radians(beam_bearing)
+    
+    # Compute new pitch angle
+    new_pitch_rad = math.atan(math.tan(pitch_rad) * math.cos(roll_rad) + math.tan(roll_rad) * math.sin(bearing_rad))
+    new_pitch = math.degrees(new_pitch_rad)
+    
+    # Compute new bearing angle
+    if roll == 0:
+        new_bearing = beam_bearing  # No change if roll is zero
+    else:
+        new_bearing_rad = math.atan(math.sin(bearing_rad) / math.cos(roll_rad))
+        new_bearing = math.degrees(new_bearing_rad)
+    
+    # Compute new absolute heading
+    new_heading = (initial_heading + new_bearing) % 360
+    
+    return new_pitch, new_heading
+
 
 def rotation_matrix(heading, pitch, roll):
     """Compute the 3D rotation matrix from heading, pitch, and roll (in degrees)."""
     # Convert degrees to radians
     heading = np.radians(heading)
-    pitch = np.radians(-pitch)  # Negate pitch to correct for coordinate system
+    pitch = np.radians(pitch)  # Negate pitch to correct for coordinate system
     roll = np.radians(roll)
 
     # Rotation matrices
-    R_z = np.array([
+    R_y = np.array([
         [np.cos(heading), -np.sin(heading), 0],
         [np.sin(heading),  np.cos(heading), 0],
         [0, 0, 1]
     ])
 
-    R_x = np.array([
+    R_r = np.array([
         [1, 0, 0],
         [0, np.cos(roll), -np.sin(roll)],
         [0, np.sin(roll), np.cos(roll)]
     ])
 
-    R_y = np.array([
+    R_p = np.array([
         [np.cos(pitch), 0, -np.sin(pitch)],  # <-- Fixed negative sign
         [0, 1, 0],
         [np.sin(pitch), 0, np.cos(pitch)]  # <-- Fixed sign
     ])
 
     # Apply rotations in the order Z * X * Y
-    return R_z @ R_x @ R_y
+    return  R_y @ R_p @ R_r
 
-# def compute_sonar_ping(row):
-#     """Compute the Cartesian coordinates of the sonar ping for a row in the DataFrame."""
-#     heading, pitch, roll = row['heading'], row['pitch'], row['roll']
-#     x, y, z = row['x'], row['y'], row['z']
-#     ping_distance = row['ping_distance']
-
-#     # Adjust the local ping vector to account for pitch before rotation
-#     ping_local = np.array([
-#     ping_distance * np.cos(np.radians(pitch)),  # Forward (X)
-#     0,  # No lateral movement (Y)
-#     -ping_distance * np.sin(np.radians(pitch))  # Depth (negative pitch should make this more negative)
-# ])
-
-#     # Compute rotation matrix
-#     R = rotation_matrix(heading, pitch, roll)
-
-#     # Transform ping to global frame
-#     ping_global = R @ ping_local
-
-#     # Add sonar's position to get global coordinates
-#     ping_global += np.array([x, y, z])
-
-#     return pd.Series({'ping_x': ping_global[0], 'ping_y': ping_global[1], 'ping_z': ping_global[2]})
-
-def compute_sonar_ping_debug(row):
+def compute_sonar_ping(row):
     """Compute the Cartesian coordinates of the sonar ping for a row in the DataFrame (with debug prints)."""
-    heading, pitch, roll = row['heading'], row['pitch'], row['roll']
+    bearing, heading, pitch, roll = row['bearing'], row['heading'], row['pitch'], row['roll']
     x, y, z = row['x'], row['y'], row['z']
     ping_distance = row['ping_distance']
 
-    # Adjust the local ping vector to account for pitch before rotation
-    ping_local = np.array([
-        ping_distance * np.cos(np.radians(pitch)),  # Forward movement
-        0,  # No sideways movement
-        -ping_distance * np.sin(np.radians(pitch))  # Depth movement (negative pitch should move it downward)
-    ])
+    new_pitch, new_heading = compute_beam_pitch_and_heading(pitch, roll, bearing, heading)
 
-    # Compute rotation matrix
-    R = rotation_matrix(heading, pitch, roll)
+    print(new_heading)
+
+    r = rotation_matrix(new_heading, new_pitch, roll)
+
+    ping_local = np.array([ping_distance, 0, 0])
 
     # Transform ping to global frame
-    ping_global = R @ ping_local
+    ping_global = r @ ping_local
 
     # Add sonar's position to get global coordinates
-    ping_global += np.array([x, y, z])
+    ping_global += np.array([-x, y, z])
 
-    # Debugging: Print key values
-    print(f"\nRow: {row.name}")
-    print(f"  Heading: {heading}, Pitch: {pitch}, Roll: {roll}")
-    print(f"  Sonar Position (x, y, z): ({x}, {y}, {z})")
-    print(f"  Ping Local: {ping_local}")
-    print(f"  Transformed Ping Global: {ping_global}")
+    print(ping_global)
 
-    return pd.Series({'ping_x': ping_global[0], 'ping_y': ping_global[1], 'ping_z': ping_global[2]})
+    return pd.Series({'ping_x': -1*ping_global[0], 'ping_y': ping_global[1], 'ping_z': ping_global[2]})
 
 # Example DataFrame
 data = {
-    'heading': [45, 90, 180],
-    'pitch': [10, -5, -30],  # Negative pitch should push ping deeper
-    'roll': [5, -2, 0],
-    'x': [10, 20, -5],
-    'y': [-5, 15, 30],
-    'z': [-20, -25, -10],
-    'ping_distance': [15, 20, 10]
+    'bearing': [0],
+    'heading': [100],
+    'pitch': [0],  # Negative pitch should push ping deeper
+    'roll': [0],
+    'x': [0],
+    'y': [0],
+    'z': [0],
+    'ping_distance': [10]
 }
 
 df = pd.DataFrame(data)
 
-# Apply function to each row
-#df[['ping_x', 'ping_y', 'ping_z']] = df.apply(compute_sonar_ping, axis=1)
-
-df[['ping_x', 'ping_y', 'ping_z']] = df.apply(compute_sonar_ping_debug, axis=1)
+df[['ping_x', 'ping_y', 'ping_z']] = df.apply(compute_sonar_ping, axis=1)
 
 print(df)
