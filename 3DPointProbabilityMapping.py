@@ -108,7 +108,7 @@ def compute_beam_pitch_and_heading(initial_pitch, roll, beam_bearing, initial_he
     new_pitch = math.degrees(new_pitch_rad)
     
     # Compute new bearing angle
-    if roll == 0:
+    if roll < 2:
         new_bearing = beam_bearing  # No change if roll is zero
     else:
         new_bearing_rad = math.atan(math.sin(bearing_rad) / math.cos(roll_rad))
