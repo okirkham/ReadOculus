@@ -45,7 +45,7 @@ def main():
     xyz['timestamp'] = pd.to_datetime(xyz['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
     oculus_csv['timestamp'] = pd.to_datetime(oculus_csv['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
 
-    merged = pd.merge_asof(oculus_csv, xyz, on='timestamp', tolerance=pd.Timedelta('250ms'), direction='nearest')
+    merged = pd.merge_asof(oculus_csv, xyz, on='timestamp', tolerance=pd.Timedelta('50ms'), direction='nearest')
 
     merged = merged.dropna(subset=['x (m)'])
 
@@ -95,7 +95,7 @@ def find_csv(path):
             return file_name
         
 def round_to_nearest_half_meter(value):
-    return round(value * 10) / 10
+    return round(value * 2) / 2
 
 def compute_beam_pitch_and_heading(initial_pitch, roll, beam_bearing, initial_heading):
     # Convert degrees to radians

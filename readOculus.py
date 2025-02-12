@@ -267,7 +267,6 @@ def bearings(data, bearingStart, numBearings):
 def payload(data, rangeCount, rangeResolution, time, position, bearings): 
     payloadStart = position + 2136 
     all_data = [] 
-    filterVal = int(rangeCount/5)
 
     for i in range(rangeCount): 
         intensities = [] 
@@ -287,14 +286,13 @@ def payload(data, rangeCount, rangeResolution, time, position, bearings):
 
     for i, bearing in enumerate(bearings): 
         if i < len(all_data): 
-            intensities = all_data[i] 
-            if len(intensities) > 2: 
-                max_value = max(intensities[filterVal:]) 
+            pings = [row[i] for row in all_data]
+            if len(pings) > 2: 
+                max_value = max(pings[2:]) 
                 if max_value > 1: 
-                    max_col_index = intensities[2:].index(max_value) + 2 
+                    max_col_index = pings[2:].index(max_value) + 2 
                     new_row = [bearing, max_col_index, rangeResolution, max_value, (max_col_index * rangeResolution), time] 
                     out_data.append(new_row)
-    
     return out_data
 
 if __name__ == "__main__":
