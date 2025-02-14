@@ -262,11 +262,14 @@ def bearings(data, bearingStart, numBearings):
         bearing = struct.unpack(data_format, x)[0] / 100 
         bearings.append(bearing) 
         n += 2 
-    return bearings 
+    
+    filtered_bearings = bearings[48:208]
+
+    return filtered_bearings 
     
 def payload(data, rangeCount, rangeResolution, time, position, bearings): 
     payloadStart = position + 2136 
-    all_data = [] 
+    all_data = []
 
     for i in range(rangeCount): 
         intensities = [] 
@@ -282,17 +285,44 @@ def payload(data, rangeCount, rangeResolution, time, position, bearings):
             
         all_data.append(intensities) 
 
+    filtered_data = [row[48:208] for row in all_data]
+
+    # Calculate dynamic range indices
+    first_third_end = rangeCount // 3  # End index of first 1/3
+    last_third_start = 2 * (rangeCount // 3)  # Start index of last 1/3
+
+    # Apply 0.5 weight to the first 1/3 of the data
+    for i in range(first_third_end):  
+        filtered_data[i] = [x * 0.5 for x in filtered_data[i]]
+
+    # Apply 0.5 weight to the last 1/3 of the data
+    for i in range(last_third_start, rangeCount):  
+        filtered_data[i] = [x * 0.1 for x in filtered_data[i]]
+
+    # Apply 0.1 weight to values > 4, 0.5 to all others in the middle 1/3 of the data
+    for i in range(first_third_end, last_third_start):  # Middle range lines
+        filtered_data[i] = [x * 0.1 if x > 4 else x * 2 for x in filtered_data[i]]  # Modify only values > 6
+        
     out_data = [] 
 
     for i, bearing in enumerate(bearings): 
-        if i < len(all_data): 
-            pings = [row[i] for row in all_data]
+        if i < len(filtered_data): 
+            pings = [row[i] for row in filtered_data]
             if len(pings) > 2: 
-                max_value = max(pings[2:]) 
+                max_value = max(pings) 
                 if max_value > 1: 
-                    max_col_index = pings[2:].index(max_value) + 2 
+                    max_col_index = pings.index(max_value) 
                     new_row = [bearing, max_col_index, rangeResolution, max_value, (max_col_index * rangeResolution), time] 
                     out_data.append(new_row)
+
+    # df1 = pd.DataFrame(all_data)
+    # df1.to_csv(r"C:\Users\0w3nk\Documents\ROV\test\all_data.csv", mode = 'a', index=False)
+
+    # df2 = pd.DataFrame(filtered_data)
+    # df2.to_csv(r"C:\Users\0w3nk\Documents\ROV\test\filtered_data.csv", mode = 'a', index=False)
+
+    # exit()
+
     return out_data
 
 if __name__ == "__main__":
