@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 import math
+import pyproj
 
 def main():
     # base path of 
@@ -95,6 +96,34 @@ def main():
     # Show plot
     plt.show()
 
+    # Define the starting UTM coordinate (example values)
+    start_easting = 394716.30    # meters
+    start_northing = 5059887.02  # meters
+
+    # Compute the new UTM coordinates by simply adding the displacements
+    merged['utm_easting'] = start_easting + merged['ping_x']
+    merged['utm_northing'] = start_northing + merged['ping_y']
+
+    source_crs = "epsg:32618"
+    target_crs = "epsg:4326"
+
+    transformer = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True)
+
+    def utm_to_latlon(easting, northing):
+        lon, lat = transformer.transform(easting, northing)
+        return lon, lat
+
+    # Apply the conversion to each row in the DataFrame
+    merged[['longitude', 'latitude']] = merged.apply(
+        lambda row: pd.Series(utm_to_latlon(row['utm_easting'], row['utm_northing'])),
+        axis=1
+    )
+
+    points_path = os.path.join(base_path, "data\sonarPoints.csv")
+
+    merged.to_csv(points_path, mode = 'a', index=False)
+
+
 # oculus file
 def find_csv(path):
     # Iterate over all files in the specified folder
@@ -112,28 +141,19 @@ def compute_beam_pitch_and_heading(initial_pitch, roll, beam_bearing, initial_he
     roll_rad    = math.radians(roll)
     bearing_rad = math.radians(beam_bearing)
     
-    # Compute the beam's unit direction in the sonar's (local) coordinate system.
-    # Using spherical coordinates:
-    #   v_x = cos(pitch) * cos(bearing)
-    #   v_y = cos(pitch) * sin(bearing)
-    #   v_z = sin(pitch)
     v = np.array([
         math.cos(pitch_rad) * math.cos(bearing_rad),
         math.cos(pitch_rad) * math.sin(bearing_rad),
         math.sin(pitch_rad)
     ])
     
-    # Apply the sonar's roll as a rotation about the x-axis.
-    # The rotation matrix about the x-axis (roll) is:
     R_x = np.array([
         [1, 0, 0],
         [0, math.cos(roll_rad), -math.sin(roll_rad)],
         [0, math.sin(roll_rad),  math.cos(roll_rad)]
     ])
     v_new = R_x @ v
-    
-    # Compute the new pitch from v_new.
-    # The new pitch is the inclination angle relative to the horizontal (x-y) plane.
+
     horizontal_magnitude = math.hypot(v_new[0], v_new[1])
     new_pitch = math.degrees(math.atan2(v_new[2], horizontal_magnitude))
     
@@ -188,19 +208,22 @@ def compute_sonar_ping(row):
     x, y, z = row['x (m)'], row['y (m)'], row['z (m)']
     ping_distance = row['distance']
 
-    new_pitch, new_heading = compute_beam_pitch_and_heading(pitch, roll, bearing, heading)
+    new_pitch, new_heading, new_roll = compute_beam_pitch_and_heading(pitch, roll, bearing, heading)
 
-    r = rotation_matrix(new_heading, new_pitch, roll)
+    r = rotation_matrix(new_heading, new_pitch, new_roll)
 
-    ping_local = np.array([ping_distance, 0, 0])
+    ping_local = np.array([-1*ping_distance,0,0,])
 
-    # Transform ping to global frame
+        # Transform ping to global frame
     ping_global = r @ ping_local
 
-    # Add sonar's position to get global coordinates
-    ping_global += np.array([x, y, -z])
+    if pitch < 0 and ping_global[2] > 0:
+        ping_global[2] *= -1
 
-    return pd.Series({'ping_x': -1*ping_global[0], 'ping_y': ping_global[1], 'ping_z': -1*ping_global[2]})
+        # Add sonar's position to get global coordinates
+    ping_global += np.array([x, y, z])
+
+    return pd.Series({'ping_x': ping_global[0], 'ping_y': ping_global[1], 'ping_z': ping_global[2]})
 
 def pointProbability(df):
     # Round the coordinates
