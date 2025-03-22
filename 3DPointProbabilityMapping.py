@@ -6,7 +6,7 @@ import math
 
 def main():
     # base path of 
-    base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_14-19-17"
+    base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-03-15_10-55-07"
 
     # dead reckoning file
     deadReckoningFolder = "data\peripheral\dvl_deadreckoning_log.csv"
@@ -37,6 +37,12 @@ def main():
     data_column = combined[['timestamp', 'heading (°)']]
 
     deadReckoningCombined= pd.merge(deadReckoning, data_column, on='timestamp', how='left')
+
+    deadReckoningCombined_folder = "data\deadReckoningCombined.csv"
+
+    deadReckoningCombined_path = os.path.join(base_path, deadReckoningCombined_folder)
+
+    deadReckoningCombined.to_csv(deadReckoningCombined_path, mode = 'a', index=False)
                         
     # merge dead reckoning file and oculus csv file based on time stamp
     columns_to_keep = ['timestamp', 'x (m)', 'y (m)', 'z (m)', 'roll (°)', 'pitch (°)', 'heading (°)']
@@ -44,6 +50,9 @@ def main():
     xyz = xyz.copy()
     xyz['timestamp'] = pd.to_datetime(xyz['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
     oculus_csv['timestamp'] = pd.to_datetime(oculus_csv['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+
+    oculus_csv = oculus_csv.sort_values('timestamp')
+    xyz = xyz.sort_values('timestamp')
 
     merged = pd.merge_asof(oculus_csv, xyz, on='timestamp', tolerance=pd.Timedelta('50ms'), direction='nearest')
 
@@ -98,26 +107,46 @@ def round_to_nearest_half_meter(value):
     return round(value * 2) / 2
 
 def compute_beam_pitch_and_heading(initial_pitch, roll, beam_bearing, initial_heading):
-    # Convert degrees to radians
-    pitch_rad = math.radians(initial_pitch)
-    roll_rad = math.radians(roll)
+    # Convert angles from degrees to radians.
+    pitch_rad   = math.radians(initial_pitch)
+    roll_rad    = math.radians(roll)
     bearing_rad = math.radians(beam_bearing)
     
-    # Compute new pitch angle
-    new_pitch_rad = math.atan(math.tan(pitch_rad) * math.cos(roll_rad) + math.tan(roll_rad) * math.sin(bearing_rad))
-    new_pitch = math.degrees(new_pitch_rad)
+    # Compute the beam's unit direction in the sonar's (local) coordinate system.
+    # Using spherical coordinates:
+    #   v_x = cos(pitch) * cos(bearing)
+    #   v_y = cos(pitch) * sin(bearing)
+    #   v_z = sin(pitch)
+    v = np.array([
+        math.cos(pitch_rad) * math.cos(bearing_rad),
+        math.cos(pitch_rad) * math.sin(bearing_rad),
+        math.sin(pitch_rad)
+    ])
     
-    # Compute new bearing angle
-    if roll < 2:
-        new_bearing = beam_bearing  # No change if roll is zero
-    else:
-        new_bearing_rad = math.atan(math.sin(bearing_rad) / math.cos(roll_rad))
-        new_bearing = math.degrees(new_bearing_rad)
+    # Apply the sonar's roll as a rotation about the x-axis.
+    # The rotation matrix about the x-axis (roll) is:
+    R_x = np.array([
+        [1, 0, 0],
+        [0, math.cos(roll_rad), -math.sin(roll_rad)],
+        [0, math.sin(roll_rad),  math.cos(roll_rad)]
+    ])
+    v_new = R_x @ v
     
-    # Compute new absolute heading
+    # Compute the new pitch from v_new.
+    # The new pitch is the inclination angle relative to the horizontal (x-y) plane.
+    horizontal_magnitude = math.hypot(v_new[0], v_new[1])
+    new_pitch = math.degrees(math.atan2(v_new[2], horizontal_magnitude))
+    
+    # The new bearing (relative horizontal angle) is given by:
+    new_bearing = math.degrees(math.atan2(v_new[1], v_new[0]))
+    
+    # Combine with the initial heading to get the new global heading.
     new_heading = (initial_heading + new_bearing) % 360
     
-    return new_pitch, new_heading
+    # Roll has been applied via the rotation, so we set it to 0.
+    new_roll = 0
+
+    return new_pitch, new_heading, new_roll
 
 
 def rotation_matrix(heading, pitch, roll):
@@ -149,13 +178,12 @@ def rotation_matrix(heading, pitch, roll):
     ])
 
     # Apply rotations in the order Z * X * Y
-    return  R_y @ R_p @ R_r
+    return  R_r @ R_p @ R_y
 
 def compute_sonar_ping(row):
     """Compute the Cartesian coordinates of the sonar ping for a row in the DataFrame
     
     """
-
     bearing, heading, pitch, roll = row['bearing'], row['heading (°)'], row['pitch (°)'], row['roll (°)']
     x, y, z = row['x (m)'], row['y (m)'], row['z (m)']
     ping_distance = row['distance']
@@ -170,9 +198,9 @@ def compute_sonar_ping(row):
     ping_global = r @ ping_local
 
     # Add sonar's position to get global coordinates
-    ping_global += np.array([-x, y, z])
+    ping_global += np.array([x, y, -z])
 
-    return pd.Series({'ping_x': -1*ping_global[0], 'ping_y': ping_global[1], 'ping_z': ping_global[2]})
+    return pd.Series({'ping_x': -1*ping_global[0], 'ping_y': ping_global[1], 'ping_z': -1*ping_global[2]})
 
 def pointProbability(df):
     # Round the coordinates
