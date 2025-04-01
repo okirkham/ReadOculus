@@ -123,7 +123,6 @@ def main():
 
     merged.to_csv(points_path, mode = 'a', index=False)
 
-
 # oculus file
 def find_csv(path):
     # Iterate over all files in the specified folder
