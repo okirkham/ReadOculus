@@ -8,7 +8,7 @@ def main():
     filter = False
 
     # input misson package path
-    base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-03-15_10-55-07"
+    base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-02-07_14-19-17"
 
     sonar = os.path.join(base_path, "sonar")
 
