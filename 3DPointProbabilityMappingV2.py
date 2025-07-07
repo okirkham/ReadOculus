@@ -7,53 +7,61 @@ import pyproj
 
 
 def main():
-    
-    # out_csv
-    out_csv = os.path.join(base_path, "data\sonar_coordinates.csv")
+    # base path of 
+    base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-03-15_10-55-07"
 
-  # Apply the function to each row and assign the result to the DataFrame
-    merged[['ping_x', 'ping_y', 'ping_z']] = merged.apply(compute_sonar_ping, axis=1)
+    sonar = os.path.join(base_path, "sonar")
 
-    coords = pointProbability(merged)
+    mergedList = find_merged_csv(sonar)
 
-    coords.to_csv(out_csv, mode = 'a', index=False)
+    for merged in mergedList:
+        # output csv path
+        out_name = merged.replace("SBT_merged.csv", "SBT_coordinates.csv") 
+        out_csv = os.path.join(base_path, "data", out_name)
 
-    filtered_points = coords[coords['probability'] >= 1]
+        # Apply the function to each row and assign the result to the DataFrame
+        merged[['ping_x', 'ping_y', 'ping_z']] = merged.apply(compute_sonar_ping, axis=1)
 
-    # Define the starting UTM coordinate (example values)
-    start_easting = 394716.30    # meters
-    start_northing = 5059887.02  # meters
+        coords = pointProbability(merged)
 
-    # Compute the new UTM coordinates by simply adding the displacements
-    merged['utm_easting'] = start_easting + merged['ping_x']
-    merged['utm_northing'] = start_northing + merged['ping_y']
+        coords.to_csv(out_csv, mode = 'a', index=False)
 
-    source_crs = "epsg:32618"
-    target_crs = "epsg:4326"
+        filtered_points = coords[coords['probability'] >= 1]
 
-    transformer = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True)
+        # Define the starting UTM coordinate (example values)
+        start_easting = 394716.30    # meters
+        start_northing = 5059887.02  # meters
 
-    def utm_to_latlon(easting, northing):
-        lon, lat = transformer.transform(easting, northing)
-        return lon, lat
+        # Compute the new UTM coordinates by simply adding the displacements
+        merged['utm_easting'] = start_easting + merged['ping_x']
+        merged['utm_northing'] = start_northing + merged['ping_y']
 
-    # Apply the conversion to each row in the DataFrame
-    merged[['longitude', 'latitude']] = merged.apply(
-        lambda row: pd.Series(utm_to_latlon(row['utm_easting'], row['utm_northing'])),
-        axis=1
-    )
+        source_crs = "epsg:32618"
+        target_crs = "epsg:4326"
 
-    points_path = os.path.join(base_path, "data\sonarPoints.csv")
+        transformer = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True)
 
-    merged.to_csv(points_path, mode = 'a', index=False)
+        def utm_to_latlon(easting, northing):
+            lon, lat = transformer.transform(easting, northing)
+            return lon, lat
 
-# oculus file
-def find_csv(path):
+        # Apply the conversion to each row in the DataFrame
+        merged[['longitude', 'latitude']] = merged.apply(
+            lambda row: pd.Series(utm_to_latlon(row['utm_easting'], row['utm_northing'])),
+            axis=1
+        )
+
+        merged.to_csv(out_csv, mode = 'a', index=False)
+
+# find filtered and merged oculus files, make a list
+def find_merged_csv(path):
+    files = []
     # Iterate over all files in the specified folder
     for file_name in os.listdir(path):
         # Check if the file has the specified extension
-        if file_name.endswith(".csv"):
-            return file_name
+        if file_name.endswith("SBT_merged.csv"):
+            files.append(file_name)
+    return files
         
 def round_to_nearest_half_meter(value):
     return round(value * 2) / 2
