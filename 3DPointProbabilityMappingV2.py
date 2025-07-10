@@ -7,16 +7,22 @@ import pyproj
 
 
 def main():
-    # base path of 
-    base_path = r"C:\Users\0w3nk\Documents\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-03-15_10-55-07"
+    # base path of mission package
+    filter = True
+
+    base_path = r
 
     sonar = os.path.join(base_path, "sonar")
 
-    mergedList = find_merged_csv(sonar)
+    mergedList = find_merged_csv(sonar, filter)
 
     for merged in mergedList:
         # output csv path
-        out_name = merged.replace("SBT_merged.csv", "SBT_coordinates.csv") 
+        if filter == False:
+            out_name = merged.replace("SBT_merged.csv", "SBT_coordinates.csv") 
+        else:
+            out_name = merged.replace("SBT_filtered_merged.csv", "SBT_filtered_coordinates.csv") 
+
         out_csv = os.path.join(base_path, "data", out_name)
 
         # Apply the function to each row and assign the result to the DataFrame
@@ -26,9 +32,10 @@ def main():
 
         coords.to_csv(out_csv, mode = 'a', index=False)
 
-        filtered_points = coords[coords['probability'] >= 1]
+        # removes points that only have one instanc ein the data set
+        #filtered_points = coords[coords['probability'] >= 1]
 
-        # Define the starting UTM coordinate (example values)
+        # Define the starting UTM coordinate 
         start_easting = 394716.30    # meters
         start_northing = 5059887.02  # meters
 
@@ -54,13 +61,17 @@ def main():
         merged.to_csv(out_csv, mode = 'a', index=False)
 
 # find filtered and merged oculus files, make a list
-def find_merged_csv(path):
+def find_merged_csv(path, filter):
     files = []
     # Iterate over all files in the specified folder
     for file_name in os.listdir(path):
         # Check if the file has the specified extension
-        if file_name.endswith("SBT_merged.csv"):
-            files.append(file_name)
+        if filter == False:
+            if file_name.endswith("SBT_merged.csv"):
+                files.append(file_name)
+        else: 
+            if file_name.endswith("SBT_filtered_merged.csv"):
+                files.append(file_name)
     return files
         
 def round_to_nearest_half_meter(value):
@@ -136,7 +147,7 @@ def compute_sonar_ping(row):
     
     """
     bearing, heading, pitch, roll = row['bearing'], row['heading (°)'], row['pitch (°)'], row['roll (°)']
-    x, y, z = row['x (m)'], row['y (m)'], row['z (m)']
+    x, y, z = row['x (m)'], row['y (m)'], row['depth']
     ping_distance = row['distance']
 
     new_pitch, new_heading, new_roll = compute_beam_pitch_and_heading(pitch, roll, bearing, heading)

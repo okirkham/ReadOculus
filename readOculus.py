@@ -4,11 +4,11 @@ from datetime import datetime, timezone
 import os 
 
 def main():
-    # filter settings
-    filter = False
+    # filter setting
+    filter = True
 
     # input misson package path
-    base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-22_15-28-12"
+    base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06"
 
     sonar = os.path.join(base_path, "sonar")
 
@@ -17,7 +17,10 @@ def main():
     oculus = os.path.join(base_path, "sonar", binaryfile)
 
     # create output csv path
-    out_csv_name = binaryfile.replace("oculus", "csv")
+    if filter == False:
+        out_csv_name = binaryfile.replace("oculus", "csv")
+    else:
+        out_csv_name = binaryfile.replace(".oculus", "_filtered.csv")
 
     out_csv = os.path.join(base_path, "sonar", out_csv_name)
 
@@ -31,7 +34,7 @@ def main():
     logSize = 242
     bearingStart = position + logSize
 
-    headerData = header(sonarData)
+    #headerData = header(sonarData)
 
     dfSonarMeta = sonarLogHeader(sonarData, position, logSize)
 
@@ -296,21 +299,21 @@ def payload(data, rangeCount, rangeResolution, time, position, bearings, filter)
     if filter is True:
         filtered_data = [row[48:208] for row in all_data]
 
-        # Calculate dynamic range indices
-        first_third_end = rangeCount // 3  # End index of first 1/3
-        last_third_start = 2 * (rangeCount // 3)  # Start index of last 1/3
+        # # Calculate dynamic range indices
+        # first_third_end = rangeCount // 3  # End index of first 1/3
+        # last_third_start = 2 * (rangeCount // 3)  # Start index of last 1/3
 
-        # Apply 0.5 weight to the first 1/3 of the data
-        for i in range(first_third_end):  
-            filtered_data[i] = [x * 0.5 for x in filtered_data[i]]
+        # # Apply 0.5 weight to the first 1/3 of the data
+        # for i in range(first_third_end):  
+        #     filtered_data[i] = [x * 0.5 for x in filtered_data[i]]
 
-        # Apply 0.5 weight to the last 1/3 of the data
-        for i in range(last_third_start, rangeCount):  
-            filtered_data[i] = [x * 0.1 for x in filtered_data[i]]
+        # # Apply 0.5 weight to the last 1/3 of the data
+        # for i in range(last_third_start, rangeCount):  
+        #     filtered_data[i] = [x * 0.1 for x in filtered_data[i]]
 
-        # Apply 0.1 weight to values > 4, 0.5 to all others in the middle 1/3 of the data
-        for i in range(first_third_end, last_third_start):  # Middle range lines
-            filtered_data[i] = [x * 0.1 if x > 4 else x * 2 for x in filtered_data[i]]  # Modify only values > 6
+        # # Apply 0.1 weight to values > 4, 0.5 to all others in the middle 1/3 of the data
+        # for i in range(first_third_end, last_third_start):  # Middle range lines
+        #     filtered_data[i] = [x * 0.1 if x > 4 else x * 2 for x in filtered_data[i]]  # Modify only values > 6
 
         for i, bearing in enumerate(bearings): 
             if i < len(filtered_data): 
