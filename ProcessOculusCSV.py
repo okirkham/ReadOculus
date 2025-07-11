@@ -95,6 +95,10 @@ def main():
     combined['depth'] = combined['depth'].astype(float)
     combined['depth'] = combined['depth'] * -1
 
+    combined['total depth'] = combined['total depth'].str[:-1]
+    combined['total depth'] = combined['total depth'].astype(float)
+    combined['total depth'] = combined['total depth'] * -1
+
     data_column1 = combined[['timestamp', 'heading (°)', 'velocity_forward (m/s)', 'velocity_right (m/s)', 'depth', 'camera pitch (°)', 'roll (°)', 'total depth']]
 
     data_column2 = deadReckoning[['timestamp', 'x (m)', 'y (m)']]
@@ -118,23 +122,6 @@ def main():
         merged = merged.dropna(subset=['x (m)'])
 
         merged = compute_distance(merged)
-
-        # # find the average velocity
-        # merged_grouped = merged.groupby('timestamp', as_index=False).mean()
-
-        # # Compute the average velocity
-        # average_velocity = merged_grouped['velocity'].mean()
-
-        # timestamp = merged[['timestamp', 'velocity_forward (m/s)']]
-
-        # timestamp['timestamp'] = pd.to_datetime(timestamp['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
-
-        # # Calculate time difference between last and first timestamp
-        # timeDiff = (timestamp['timestamp'].iloc[-1] - timestamp['timestamp'].iloc[0]).total_seconds()
-
-        # distanceTraveled = average_velocity * timeDiff
-
-        # timestamp = timestamp.groupby('timestamp', as_index=False).mean()
 
         if filter == False:
             out_name = file_name.replace("SBT.csv", "SBT_merged.csv")
@@ -173,25 +160,6 @@ def find_filtered_csv(path, filter):
             if file_name.endswith("SBT_filtered.csv"):
                 files.append(file_name)
     return files
-
-# def compute_distance(df):
-#     # Parse the timestamp correctly
-#     df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
-
-#     # Time delta between measurements in seconds
-#     df['delta_time'] = df['timestamp'].diff().dt.total_seconds().fillna(0)
-
-#     # Directional displacements
-#     df['distance_forward'] = df['velocity_forward (m/s)'] * df['delta_time']
-#     df['distance_right'] = df['velocity_right (m/s)'] * df['delta_time']
-
-#     # Total movement per step (Euclidean)
-#     df['distance_traveled'] = np.sqrt(df['distance_forward']**2 + df['distance_right']**2)
-
-#     # Optional: cumulative total distance
-#     df['total_distance'] = df['distance_traveled'].cumsum()
-
-#     return df
 
 def compute_distance(df):
     # Step 1: Parse timestamps
