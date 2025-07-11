@@ -39,7 +39,7 @@ def main():
     timestamp_list = [
         ("2025.05.21 19:43:57:000", "2025.05.21 19:44:07:000"),
         ("2025.05.21 19:44:34:000", "2025.05.21 19:44:44:000"),
-        ("2025.05.21 19:47:42:000", "2025.05.21 19:49:32:000")
+        ("2025.05.21 19:47:46:000", "2025.05.21 19:49:32:000")
     ]
 
     #########################################################################################################################################################################################
@@ -95,15 +95,11 @@ def main():
     combined['depth'] = combined['depth'].astype(float)
     combined['depth'] = combined['depth'] * -1
 
-    data_column = combined[['timestamp', 'heading (°)', 'velocity_forward (m/s)', 'velocity_right (m/s)', 'depth']]
+    data_column1 = combined[['timestamp', 'heading (°)', 'velocity_forward (m/s)', 'velocity_right (m/s)', 'depth', 'camera pitch (°)', 'roll (°)', 'total depth']]
 
-    deadReckoningCombined= pd.merge(deadReckoning, data_column, on='timestamp', how='left')
+    data_column2 = deadReckoning[['timestamp', 'x (m)', 'y (m)']]
 
-    deadReckoningCombined_folder = "data\deadReckoningCombined.csv"
-
-    deadReckoningCombined_path = os.path.join(base_path, deadReckoningCombined_folder)
-
-    deadReckoningCombined.to_csv(deadReckoningCombined_path, mode = 'a', index=False)
+    deadReckoningCombined= pd.merge(data_column2, data_column1, on='timestamp', how='left')
 
     csvFiles = find_filtered_csv(sonar, filter)
 
@@ -111,20 +107,34 @@ def main():
     for file_name in csvFiles:
         csvPath = os.path.join(base_path, "sonar", file_name)
         filtered_csv = pd.read_csv(csvPath, encoding = "utf-8", sep=',')
-
-        # merge dead reckoning file and oculus csv file based on time stamp
-        columns_to_keep = ['timestamp', 'x (m)', 'y (m)', 'roll (°)', 'pitch (°)', 'heading (°)', 'velocity_forward (m/s)', 'velocity_right (m/s)', 'depth']
-        xyz = deadReckoningCombined[columns_to_keep]
-        xyz = xyz.copy()
-        xyz['timestamp'] = pd.to_datetime(xyz['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+        deadReckoningCombined['timestamp'] = pd.to_datetime(deadReckoningCombined['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
         filtered_csv['timestamp'] = pd.to_datetime(filtered_csv['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
 
         filtered_csv = filtered_csv.sort_values('timestamp')
-        xyz = xyz.sort_values('timestamp')
+        deadReckoningCombined = deadReckoningCombined.sort_values('timestamp')
 
-        merged = pd.merge_asof(filtered_csv, xyz, on='timestamp', tolerance=pd.Timedelta('50ms'), direction='nearest')
+        merged = pd.merge_asof(filtered_csv, deadReckoningCombined, on='timestamp', tolerance=pd.Timedelta('50ms'), direction='nearest')
 
         merged = merged.dropna(subset=['x (m)'])
+
+        merged = compute_distance(merged)
+
+        # # find the average velocity
+        # merged_grouped = merged.groupby('timestamp', as_index=False).mean()
+
+        # # Compute the average velocity
+        # average_velocity = merged_grouped['velocity'].mean()
+
+        # timestamp = merged[['timestamp', 'velocity_forward (m/s)']]
+
+        # timestamp['timestamp'] = pd.to_datetime(timestamp['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+
+        # # Calculate time difference between last and first timestamp
+        # timeDiff = (timestamp['timestamp'].iloc[-1] - timestamp['timestamp'].iloc[0]).total_seconds()
+
+        # distanceTraveled = average_velocity * timeDiff
+
+        # timestamp = timestamp.groupby('timestamp', as_index=False).mean()
 
         if filter == False:
             out_name = file_name.replace("SBT.csv", "SBT_merged.csv")
@@ -163,6 +173,63 @@ def find_filtered_csv(path, filter):
             if file_name.endswith("SBT_filtered.csv"):
                 files.append(file_name)
     return files
+
+# def compute_distance(df):
+#     # Parse the timestamp correctly
+#     df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+
+#     # Time delta between measurements in seconds
+#     df['delta_time'] = df['timestamp'].diff().dt.total_seconds().fillna(0)
+
+#     # Directional displacements
+#     df['distance_forward'] = df['velocity_forward (m/s)'] * df['delta_time']
+#     df['distance_right'] = df['velocity_right (m/s)'] * df['delta_time']
+
+#     # Total movement per step (Euclidean)
+#     df['distance_traveled'] = np.sqrt(df['distance_forward']**2 + df['distance_right']**2)
+
+#     # Optional: cumulative total distance
+#     df['total_distance'] = df['distance_traveled'].cumsum()
+
+#     return df
+
+def compute_distance(df):
+    # Step 1: Parse timestamps
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+
+    # Step 2: Create unique timestamp DataFrame for calculations
+    unique_ts_df = (
+        df[['timestamp', 'velocity_forward (m/s)', 'velocity_right (m/s)']]
+        .drop_duplicates('timestamp')
+        .sort_values('timestamp')
+        .reset_index(drop=True)
+    )
+
+    # Step 3: Calculate time between records
+    unique_ts_df['delta_time'] = unique_ts_df['timestamp'].diff().dt.total_seconds().fillna(0)
+
+    # Step 4: Directional distances
+    unique_ts_df['distance_forward'] = unique_ts_df['velocity_forward (m/s)'] * unique_ts_df['delta_time']
+    unique_ts_df['distance_right'] = unique_ts_df['velocity_right (m/s)'] * unique_ts_df['delta_time']
+    unique_ts_df['distance_traveled'] = np.sqrt(
+        unique_ts_df['distance_forward']**2 + unique_ts_df['distance_right']**2
+    )
+
+    # Step 5: Cumulative total distance
+    unique_ts_df['total_forward'] = unique_ts_df['distance_forward'].cumsum()
+    unique_ts_df['total_right'] = unique_ts_df['distance_right'].cumsum()
+    unique_ts_df['total_distance'] = unique_ts_df['distance_traveled'].cumsum()
+
+    # Step 6: Merge results back to original DataFrame
+    result_df = df.merge(
+        unique_ts_df[['timestamp', 'delta_time', 'distance_forward', 'distance_right', 'distance_traveled', 'total_forward', 'total_right', 'total_distance']],
+        on='timestamp',
+        how='left'
+    )
+
+    return result_df
+
+
         
 if __name__ == "__main__":
     main()
