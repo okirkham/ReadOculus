@@ -21,20 +21,6 @@ def main():
     # base path of ROV mission package
     base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06"
 
-    # dead reckoning file
-    deadReckoningFolder = "data\peripheral\dvl_deadreckoning_log.csv"
-
-    deadReckoningPath = os.path.join(base_path, deadReckoningFolder)
-
-    deadReckoning = pd.read_csv(deadReckoningPath, encoding = "utf-8", sep=',')
-
-    # combined log
-    combined_folder = "data\combined_log.csv"
-
-    combined_path = os.path.join(base_path, combined_folder)
-
-    combined = pd.read_csv(combined_path, encoding = "utf-8", sep=',')
-
     # List of timestamps to be extracted 
     timestamp_list = [
         ("2025.05.21 19:43:57:000", "2025.05.21 19:44:07:000"),
@@ -46,12 +32,15 @@ def main():
     # Names of output csv files
     # Naming convention:
     # survey type code: cross section = CS, range finding = RF, sweeping scan = SS
+    # durvey location code: mh - melt hole, 50 = 50m marker stake, 100 = 100m marker stake
     # Survey description code: cross sections can be south to north (S2N) or north to south (N2S),
     # range finding can be north (N), south (S) or down (D), and sweeping scans can be north (N) or south (S)
+    # offset in meters, inserted after survey description code as xx, rename after finding the range
     # The survey description code is followed by an ID number for the specific survey type. This is useful if a specific survey has be been performed multple times within a single log file.
     # All names end with SBT, meaning "Split by Timestamp", allowing for the SBT files to be  distinuged  from unfiltered csv log files.
+    # Example name: "Oculus_20250521_194207_CS_50m_S2N1_28_SBT"
 
-    names = ["Oculus_20250521_194207_RF_S1_SBT", "Oculus_20250521_194207_RF_N1_SBT", "Oculus_20250521_194207_CS_S2N1_SBT"]
+    names = ["Oculus_20250521_194207_RF_50_S1_SBT", "Oculus_20250521_194207_RF_50_N1_SBT", "Oculus_20250521_194207_CS_50_S2N1_xx_SBT"]
 
     #########################################################################################################################################################################################
 
@@ -88,7 +77,21 @@ def main():
         filtered_df["timestamp"] = filtered_df["timestamp"].dt.strftime("%Y.%m.%d %H:%M:%S:%f")
         filtered_df.to_csv(outPath, index=False)
 
-    print(csvNames)
+    del filtered_df
+
+    # dead reckoning file
+    deadReckoningFolder = "data\peripheral\dvl_deadreckoning_log.csv"
+
+    deadReckoningPath = os.path.join(base_path, deadReckoningFolder)
+
+    deadReckoning = pd.read_csv(deadReckoningPath, encoding = "utf-8", sep=',')
+
+    # combined log
+    combined_folder = "data\combined_log.csv"
+
+    combined_path = os.path.join(base_path, combined_folder)
+
+    combined = pd.read_csv(combined_path, encoding = "utf-8", sep=',')
 
     # add heading data to dead reckoning file
     combined['depth'] = combined['depth'].str[:-1]
@@ -132,6 +135,10 @@ def main():
 
         merged["timestamp"] = merged["timestamp"].dt.strftime("%Y.%m.%d %H:%M:%S:%f")
         merged.to_csv(out_csv, mode = 'a', index=False)
+
+    for file_name in csvFiles:
+        delPath = os.path.join(base_path, "sonar", file_name)
+        os.remove(delPath)
     
     print("prcoessing complete")
 
