@@ -53,9 +53,13 @@ def main():
 
             out_csv = os.path.join(base_path, "data", out_name)
 
-            df.to_csv(out_csv, mode = 'a', index=False)
+            out_df = df[['timestamp', 'distance', 'Intensity', 'bearing', 'heading (°)', 
+                         'camera pitch (°)', 'roll (°)', 'total_forward', 'total_right', 
+                         'depth', 'ping_x', 'ping_y', 'ping_z', 'longitude', 'latitude', 'rov_longitude', 'rov_latitude']]
 
-            print("point cloud generated")
+            out_df.to_csv(out_csv, mode = 'a', index=False)
+
+            print(f"point cloud {out_name} generated")
 
 # find filtered and merged oculus files, make a list
 def find_merged_csv(path, filter):
@@ -166,10 +170,13 @@ def createPointCloud(df, easting, northing):
         df[['ping_x', 'ping_y', 'ping_z']] = df.apply(compute_sonar_ping, axis=1)
 
         # Compute the new UTM coordinates by simply adding the displacements
-        df['utm_easting'] = easting + df['ping_x']
-        df['utm_northing'] = northing + df['ping_y']
+        df['ping_easting'] = easting + df['ping_x']
+        df['ping_northing'] = northing + df['ping_y']
 
-        source_crs = "epsg:32618"
+        df['rov_easting'] = easting + df['total_forward']
+        df['rov_northing'] = northing + df['total_right']
+
+        source_crs = "epsg:32617"
         target_crs = "epsg:4326"
 
         transformer = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True)
@@ -180,7 +187,12 @@ def createPointCloud(df, easting, northing):
 
         # Apply the conversion to each row in the DataFrame
         df[['longitude', 'latitude']] = df.apply(
-            lambda row: pd.Series(utm_to_latlon(row['utm_easting'], row['utm_northing'])),
+            lambda row: pd.Series(utm_to_latlon(row['ping_easting'], row['ping_northing'])),
+            axis=1
+        )
+
+        df[['rov_longitude', 'rov_latitude']] = df.apply(
+            lambda row: pd.Series(utm_to_latlon(row['rov_easting'], row['rov_northing'])),
             axis=1
         )
 
@@ -200,16 +212,15 @@ def crossSection(csvName, basepath, offset, easting, northing):
     code = csvName[28:31]
 
     if code.startswith("S2N"):
-        csv_df['x'] = csv_df['total_forward'] * -1
-        csv_df['x'] = csv_df['x'] + offset
-        csv_df['y'] = csv_df['total_right']
+        csv_df['total_forward'] = csv_df['total_forward'] * -1
+        csv_df['total_forward'] = csv_df['total_forward'] + offset
 
         df = createPointCloud(csv_df, easting, northing)
 
         return df
     else:
-        csv_df['x'] = csv_df['total_forward'] - offset
-        csv_df['y'] = csv_df['total_right'] * -1
+        csv_df['total_forward'] = csv_df['total_forward'] - offset
+        csv_df['total_right'] = csv_df['total_right'] * -1
 
         df = createPointCloud(csv_df, easting, northing)
 

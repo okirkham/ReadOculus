@@ -32,7 +32,7 @@ def main():
     # Names of output csv files
     # Naming convention:
     # survey type code: cross section = CS, range finding = RF, sweeping scan = SS
-    # durvey location code: mh - melt hole, 50 = 50m marker stake, 100 = 100m marker stake
+    # durvey location code: 1 - melt hole, 2 = 50m marker stake, 3 = 100m marker stake
     # Survey description code: cross sections can be south to north (S2N) or north to south (N2S),
     # range finding can be north (N), south (S) or down (D), and sweeping scans can be north (N) or south (S)
     # offset in meters, inserted after survey description code as xx, rename after finding the range
@@ -40,7 +40,7 @@ def main():
     # All names end with SBT, meaning "Split by Timestamp", allowing for the SBT files to be  distinuged  from unfiltered csv log files.
     # Example name: "Oculus_20250521_194207_CS_50m_S2N1_28_SBT"
 
-    names = ["Oculus_20250521_194207_RF_50_S1_SBT", "Oculus_20250521_194207_RF_50_N1_SBT", "Oculus_20250521_194207_CS_50_S2N1_xx_SBT"]
+    names = ["Oculus_20250521_194207_RF_50_S1_SBT", "Oculus_20250521_194207_RF_50_N1_SBT", "Oculus_20250521_194207_CS_2_S2N1_xx_SBT"]
 
     #########################################################################################################################################################################################
 

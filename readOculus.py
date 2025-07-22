@@ -40,7 +40,7 @@ def main():
 
     # find beam bearings
     numBearings = dfSonarMeta['bearingCount'].values[0]
-    bearingList = bearings(sonarData, bearingStart, numBearings, filter)
+    bearingList = bearings(sonarData, bearingStart, numBearings)
 
     # calculate estimate message size
     size = dfSonarMeta['messageSize'].values[0]
@@ -256,7 +256,7 @@ def binaryConverter(binary):
 
     return [binary_map[i] for i in nibbleReader(binary)]
 
-def bearings(data, bearingStart, numBearings, filter): 
+def bearings(data, bearingStart, numBearings): 
     '''
     Make a list of sonar bearings
     '''
