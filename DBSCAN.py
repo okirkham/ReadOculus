@@ -7,15 +7,24 @@ import matplotlib.pyplot as plt
 import itertools
 import plotly.express as px
 
-df =  pd.read_csv(r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06\sonar\scans\2025.05.21_19-47-59-829.csv")
+df =  pd.read_csv(r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06\sonar\scans\2025.05.21_19-48-16-031.csv")
 
-x_y_z = df[['bearing', 'rangeLine', 'intensity']]
+# Calculate Cartesian coordinates
 
-x, y, z = df.bearing, df.rangeLine, df.intensity
+df["bearing_cartesian"] = np.radians(90 - df["bearing"])
+df["x"] = df["distance"] * np.cos(df["bearing_cartesian"])
+df["y"] = df["distance"] * np.sin(df["bearing_cartesian"])
+
+df['intensity'] = df['intensity']*5
+
+x_y_z = df[['x', 'y', 'intensity']]
+
+x, y, z = df.x, df.y, df.intensity
+
+fig = px.scatter(x=x, y=y, color=df['intensity'])
+fig.show()
 
 X = x_y_z.to_numpy()
-
-X_scaled = StandardScaler().fit_transform(X)
 
 epsilons = np.linspace(0.01, 5, num=20)
 
@@ -44,7 +53,7 @@ def get_scores_and_labels(combinations, X):
             print(f"Combination {c} on iteration {i+1} of {N} has {num_clusters} clusters. Moving on")
             continue
 
-        scores.append(ss(x, labels))
+        scores.append(ss(X, labels))
         all_labels_list.append(labels)
         print(f"Index: {i}, Score: {scores[-1]}, Labels: {all_labels_list[-1]}, NumClusters: {num_clusters}")
 
@@ -58,20 +67,18 @@ def get_scores_and_labels(combinations, X):
             'best_labels': best_labels,
             'best_score': best_score}
 
-#best_Score = get_scores_and_labels(combinations, X_scaled)
+print(f'trying {N} possible combinations')
 
-#print(best_Score)
+best_Score = get_scores_and_labels(combinations, X)
 
-# {'best_epsilon': 3.085384615384615, 'best_min_samples': 12, 'best_labels': array([0, 0, 0, ..., 0, 0, 0], dtype=int64), 'best_score': 0.7813246588661709}
-
-dbscan_cluster_model = DBSCAN(eps=3.085, min_samples=12).fit(X_scaled)
+dbscan_cluster_model = DBSCAN(eps=best_Score['best_epsilon'], min_samples=best_Score['best_min_samples']).fit(X)
 
 df['cluster'] = dbscan_cluster_model.labels_
 
 labels = dbscan_cluster_model.labels_
 labels_set = set(labels)
 num_clusters = len(labels_set)
-print(num_clusters)
+print(f'there are {num_clusters} clusters')
 
 fig = px.scatter(x=x, y=y, color=df['cluster'])
 fig.show()

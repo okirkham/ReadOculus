@@ -36,7 +36,7 @@ def main():
 
     # find beam bearings
     numBearings = dfSonarMeta['bearingCount'].values[0]
-    bearingList = bearings(sonarData, bearingStart, numBearings, filter)
+    bearingList = bearings(sonarData, bearingStart, numBearings)
 
     # calculate estimate message size
     size = dfSonarMeta['messageSize'].values[0]
@@ -243,7 +243,7 @@ def binaryConverter(binary):
 
     return [binary_map[i] for i in nibbleReader(binary)]
 
-def bearings(data, bearingStart, numBearings, filter): 
+def bearings(data, bearingStart, numBearings): 
     '''
     Make a list of sonar bearings
     '''
@@ -263,8 +263,10 @@ def bearings(data, bearingStart, numBearings, filter):
 
     
 def payload(data, rangeCount, rangeResolution, time, position, bearings): 
-    payloadStart = position + 2136 
+    payloadStart = position + 2090
     all_data = []
+    upperRangeCutoff = rangeCount * 0.98
+    lowerRangeCutoff = rangeCount * 0.02
 
     for i in range(rangeCount): 
         intensities = [] 
@@ -292,7 +294,7 @@ def payload(data, rangeCount, rangeResolution, time, position, bearings):
         pings = filtered_data[:, i]  # Just one slice, super fast
         for col_index, ping in enumerate(pings):
             # ping is the intensity value
-            if ping > 0:
+            if ping > 0 and col_index < upperRangeCutoff and col_index > lowerRangeCutoff:
                 new_row = [bearing, col_index, rangeResolution, ping, (col_index * rangeResolution), time]
                 out_data.append(new_row)
 
