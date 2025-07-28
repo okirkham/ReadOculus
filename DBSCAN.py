@@ -21,14 +21,11 @@ x_y_z = df[['x', 'y', 'intensity']]
 
 x, y, z = df.x, df.y, df.intensity
 
-fig = px.scatter(x=x, y=y, color=df['intensity'])
-fig.show()
-
 X = x_y_z.to_numpy()
 
 epsilons = np.linspace(0.01, 5, num=20)
 
-min_samples = np.arange(2, 20, step=2)
+min_samples = np.arange(1,10, step=1)
 
 combinations = list(itertools.product(epsilons, min_samples))
 

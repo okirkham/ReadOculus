@@ -258,10 +258,8 @@ def bearings(data, bearingStart, numBearings):
     
     filtered_bearings = bearings[48:208]
 
-
     return filtered_bearings 
 
-    
 def payload(data, rangeCount, rangeResolution, time, position, bearings): 
     payloadStart = position + 2090
     all_data = []
