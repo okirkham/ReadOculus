@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, timezone, timedelta
 import os
 import numpy as np
+from sklearn.cluster import HDBSCAN
 
 def main():
     # input misson package path
@@ -14,11 +15,7 @@ def main():
 
     oculus = os.path.join(base_path, "sonar", binaryfile)
 
-    # create output csv path
-
-    # out_csv_name = binaryfile.replace(".oculus", "_filtered.csv")
-
-    # out_csv = os.path.join(base_path, "sonar", out_csv_name)
+    scans = os.path.join(base_path, "sonar", "scans")
 
     oculusBinary = open(oculus, mode='rb')
 
@@ -75,23 +72,79 @@ def main():
         eastern_offset = timedelta(hours=-5)
         eastern_time = (utc_time + eastern_offset).replace(tzinfo=None)
 
-        print("Scan time:", eastern_time)
-
         if any(start <= eastern_time <= end for start, end in timestamp_ranges):
-            # extract sonar data for item
-            dataList = payload(sonarData, rangeCount, rangeResolution, eastern_time, position, bearingList)
-
-            #flat_data = [item for sublist in dataList for item in sublist]
-            final_df = pd.DataFrame(dataList, columns=['bearing', 'rangeLine', 'rangeResolution', 'intensity', 
-                                        'distance', 'timestamp'])
-            
+            print("Scan time:", eastern_time)
             clean_time = eastern_time.strftime("%Y.%m.%d_%H-%M-%S-%f")[:-3]
             out_csv = os.path.join(base_path, "sonar", "scans", f"{clean_time}.csv")
-            final_df.to_csv(out_csv, mode='a', index=False)
+
+            if not os.path.exists(out_csv):
+                # extract sonar data for item
+                dataList = payload(sonarData, rangeCount, rangeResolution, eastern_time, position, bearingList)
+
+                #flat_data = [item for sublist in dataList for item in sublist]
+                final_df = pd.DataFrame(dataList, columns=['bearing', 'rangeLine', 'rangeResolution', 'intensity', 
+                                        'distance', 'timestamp'])
+            
+                final_df.to_csv(out_csv, mode='a', index=False)
+            else:
+                print('scan already exists')
 
         position = position + messageSize + 40
 
     oculusBinary.close()
+
+    headers = ['bearing', 'rangeLine', 'rangeResolution', 'intensity', 'distance', 'timestamp']
+
+    master_df = pd.DataFrame(columns=headers)
+
+    out_master_name = binaryfile.replace(".oculus", ".csv")
+
+    out_master = os.path.join(base_path, "sonar", out_master_name)
+
+    master_df.to_csv(out_master, index=False)
+
+    for scan in os.listdir(scans):
+        scan_path = os.path.join(scans, scan)
+        df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
+
+        df["bearing_cartesian"] = np.radians(90 - df["bearing"])
+        df["x"] = df["distance"] * np.cos(df["bearing_cartesian"])
+        df["y"] = df["distance"] * np.sin(df["bearing_cartesian"])
+
+        df['bin'] = None
+
+        df['bin'] = pd.cut(
+            df['intensity'],
+            bins=[-float('inf'), 3, 15],
+            labels=[1, 2]
+        ).astype('int')
+
+        x_y_z = df[['x', 'y', 'bin']]
+
+        X = x_y_z.to_numpy()
+
+        dbscan_cluster_model = HDBSCAN(min_samples=200).fit(X)
+
+        df['cluster'] = dbscan_cluster_model.labels_
+
+        bin2_rows = df[df['bin'] == 2]
+
+        # Step 2: Get unique cluster labels associated with bin == 2
+        clusters_with_bin2 = bin2_rows['cluster'].unique()
+
+        # Optional: print to verify
+        print("Clusters with bin=2:", clusters_with_bin2)
+
+        # Filter rows where cluster is one of those and bin == 2
+        filtered = df[(df['cluster'].isin(clusters_with_bin2)) & (df['bin'] == 2)]
+
+        # Extract the first six columns (by position or label)
+        subset = filtered.iloc[:, :6]
+
+        # Append to master DataFrame
+        subset.to_csv(out_master, mode='a', index=False, header=False)
+
+        print(f'{scan} merged with master csv')
 
     print('finished')
 
@@ -261,7 +314,7 @@ def bearings(data, bearingStart, numBearings):
     return filtered_bearings 
 
 def payload(data, rangeCount, rangeResolution, time, position, bearings): 
-    payloadStart = position + 2090
+    payloadStart = position + 2088
     all_data = []
     upperRangeCutoff = rangeCount * 0.98
     lowerRangeCutoff = rangeCount * 0.02
