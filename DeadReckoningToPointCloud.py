@@ -8,7 +8,6 @@ import pyproj
 
 def main():
     # base path of mission package
-    filter = True
     
     # coordinates of starting position [easting, northing]
     meltHole = [495407.35170000,9184737.66000000]
@@ -22,7 +21,7 @@ def main():
 
     sonar = os.path.join(base_path, "sonar")
 
-    mergedList = find_merged_csv(sonar, filter)
+    mergedList = find_merged_csv(sonar)
 
     for merged in mergedList:
         output = False
@@ -46,14 +45,12 @@ def main():
             pass
         
         if output == True:
-            if filter == False:
-                out_name = merged.replace("SBT_merged.csv", "SBT_coordinates.csv") 
-            else:
-                out_name = merged.replace("SBT_filtered_merged.csv", "SBT_filtered_coordinates.csv") 
+
+            out_name = merged.replace("SBT_merged.csv", "SBT_coordinates.csv") 
 
             out_csv = os.path.join(base_path, "data", out_name)
 
-            out_df = df[['timestamp', 'distance', 'Intensity', 'bearing', 'heading (°)', 
+            out_df = df[['timestamp', 'distance', 'intensity', 'bearing', 'heading (°)', 
                          'camera pitch (°)', 'roll (°)', 'total_forward', 'total_right', 
                          'depth', 'ping_x', 'ping_y', 'ping_z', 'longitude', 'latitude', 'rov_longitude', 'rov_latitude']]
 
@@ -62,17 +59,14 @@ def main():
             print(f"point cloud {out_name} generated")
 
 # find filtered and merged oculus files, make a list
-def find_merged_csv(path, filter):
+def find_merged_csv(path):
     files = []
     # Iterate over all files in the specified folder
     for file_name in os.listdir(path):
         # Check if the file has the specified extension
-        if filter == False:
-            if file_name.endswith("SBT_merged.csv"):
-                files.append(file_name)
-        else: 
-            if file_name.endswith("SBT_filtered_merged.csv"):
-                files.append(file_name)
+        if "SBT_merged.csv" in file_name:
+            files.append(file_name)
+
     return files
 
 def compute_beam_pitch_and_heading(initial_pitch, roll, beam_bearing, initial_heading):

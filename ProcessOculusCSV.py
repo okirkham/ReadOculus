@@ -11,12 +11,7 @@ def main():
     Takes the raw csv sonar output from readOculus.py and merges it with positioning data from the combined_log and the dvl_deadreckoning_log
 
     Before running the script, base_path, timestamp_list and names should be modified to the desired input
-
-    change filter to true if the raw sonar csv was orciessed using the filter option
     '''
-
-    # filter setting
-    filter = True
 
     # base path of ROV mission package
     base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06"
@@ -47,26 +42,20 @@ def main():
     # Load CSV file
     sonar = os.path.join(base_path, "sonar")
 
-    csvFile = find_csv(sonar, filter)
-
-    print(csvFile)
+    csvFile = find_csv(sonar)
 
     csvPath = os.path.join(base_path, "sonar", csvFile)
 
     oculus_csv = pd.read_csv(csvPath, encoding = "utf-8", sep=',')
 
     # Convert timestamp column to datetime
-    oculus_csv["timestamp"] = pd.to_datetime(oculus_csv["timestamp"], format="%Y.%m.%d %H:%M:%S:%f")
+    oculus_csv["timestamp"] = pd.to_datetime(oculus_csv["timestamp"], format="%Y-%m-%d %H:%M:%S.%f")
 
     csvNames = []
 
     for name in names:
-        if filter == False:
-            name += ".csv"
-            csvNames.append(name)
-        else:
-            name += "_filtered.csv"
-            csvNames.append(name)
+        name += ".csv"
+        csvNames.append(name)
 
     # Save filtered segments as separate CSV files
     for (start_str, end_str), name in zip(timestamp_list, csvNames):
@@ -106,9 +95,9 @@ def main():
 
     data_column2 = deadReckoning[['timestamp', 'x (m)', 'y (m)']]
 
-    deadReckoningCombined= pd.merge(data_column2, data_column1, on='timestamp', how='left')
+    deadReckoningCombined = pd.merge(data_column2, data_column1, on='timestamp', how='left')
 
-    csvFiles = find_filtered_csv(sonar, filter)
+    csvFiles = find_split_csv(sonar)
 
     #
     for file_name in csvFiles:
@@ -126,10 +115,7 @@ def main():
 
         merged = compute_distance(merged)
 
-        if filter == False:
-            out_name = file_name.replace("SBT.csv", "SBT_merged.csv")
-        else:
-            out_name = file_name.replace("SBT_filtered.csv", "SBT_filtered_merged.csv")
+        out_name = file_name.replace("SBT.csv", "SBT_merged.csv")
 
         out_csv = os.path.join(base_path, "sonar", out_name)
 
@@ -143,29 +129,21 @@ def main():
     print("prcoessing complete")
 
 # find oculus file
-def find_csv(path, filter):
+def find_csv(path):
     # Iterate over all files in the specified folder
     for file_name in os.listdir(path):
         # Check if the file has the specified extension
-        if filter == False:
-            if file_name.endswith(".csv"):
-                return file_name
-        else:
-            if file_name.endswith("filtered.csv"):
-                return file_name
+        if file_name.endswith(".csv"):
+            return file_name
 
-# find filtered oculus files, make a lsit
-def find_filtered_csv(path, filter):
+# find filtered oculus files, make a list
+def find_split_csv(path):
     files = []
     # Iterate over all files in the specified folder
     for file_name in os.listdir(path):
         # Check if the file has the specified extension
-        if filter == False:
-            if file_name.endswith("SBT.csv"):
-                files.append(file_name)
-        else:
-            if file_name.endswith("SBT_filtered.csv"):
-                files.append(file_name)
+        if "SBT.csv" in file_name:
+            files.append(file_name)
     return files
 
 def compute_distance(df):
@@ -204,7 +182,5 @@ def compute_distance(df):
 
     return result_df
 
-
-        
 if __name__ == "__main__":
     main()

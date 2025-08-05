@@ -130,7 +130,7 @@ def main():
         bin2_rows = df[df['bin'] == 2]
 
         # Step 2: Get unique cluster labels associated with bin == 2
-        clusters_with_bin2 = bin2_rows['cluster'].unique()
+        clusters_with_bin2 = [c for c in bin2_rows['cluster'].unique() if c != -1]
 
         # Optional: print to verify
         print("Clusters with bin=2:", clusters_with_bin2)
