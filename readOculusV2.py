@@ -45,7 +45,8 @@ def main():
     timestamp_list = [
         ("2025.05.21 19:43:57:000", "2025.05.21 19:44:07:000"),
         ("2025.05.21 19:44:34:000", "2025.05.21 19:44:44:000"),
-        ("2025.05.21 19:47:46:000", "2025.05.21 19:49:32:000")
+        ("2025.05.21 19:47:46:000", "2025.05.21 19:49:32:000"),
+        ("2025.05.21 19:50:24:000", "2025.05.21 19:51:09:000")
     ]
 
     timestamp_ranges = [
@@ -53,6 +54,8 @@ def main():
         datetime.strptime(end, "%Y.%m.%d %H:%M:%S:%f"))
         for start, end in timestamp_list
     ]
+
+    scannedList = []
 
     for item in range(0,numItems):
         if position + logSize > fileSize: 
@@ -75,6 +78,7 @@ def main():
         if any(start <= eastern_time <= end for start, end in timestamp_ranges):
             print("Scan time:", eastern_time)
             clean_time = eastern_time.strftime("%Y.%m.%d_%H-%M-%S-%f")[:-3]
+            name = f"{clean_time}.csv"
             out_csv = os.path.join(base_path, "sonar", "scans", f"{clean_time}.csv")
 
             if not os.path.exists(out_csv):
@@ -87,9 +91,14 @@ def main():
             
                 final_df.to_csv(out_csv, mode='a', index=False)
             else:
+                scannedList.append(name)
                 print('scan already exists')
 
         position = position + messageSize + 40
+    
+    scannedSet = set(scannedList)
+
+    del scannedList
 
     oculusBinary.close()
 
@@ -101,50 +110,56 @@ def main():
 
     out_master = os.path.join(base_path, "sonar", out_master_name)
 
-    master_df.to_csv(out_master, index=False)
+    if os.path.exists(out_master):
+        print("master csv already exists")
+    else:
+        master_df.to_csv(out_master, index=False)
 
     for scan in os.listdir(scans):
-        scan_path = os.path.join(scans, scan)
-        df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
+        if scan in scannedSet:
+            print("scan already added to master csv")
+        else:
+            scan_path = os.path.join(scans, scan)
+            df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
 
-        df["bearing_cartesian"] = np.radians(90 - df["bearing"])
-        df["x"] = df["distance"] * np.cos(df["bearing_cartesian"])
-        df["y"] = df["distance"] * np.sin(df["bearing_cartesian"])
+            df["bearing_cartesian"] = np.radians(90 - df["bearing"])
+            df["x"] = df["distance"] * np.cos(df["bearing_cartesian"])
+            df["y"] = df["distance"] * np.sin(df["bearing_cartesian"])
 
-        df['bin'] = None
+            df['bin'] = None
 
-        df['bin'] = pd.cut(
-            df['intensity'],
-            bins=[-float('inf'), 3, 15],
-            labels=[1, 2]
-        ).astype('int')
+            df['bin'] = pd.cut(
+                df['intensity'],
+                bins=[-float('inf'), 3, 15],
+                labels=[1, 2]
+            ).astype('int')
 
-        x_y_z = df[['x', 'y', 'bin']]
+            x_y_z = df[['x', 'y', 'bin']]
 
-        X = x_y_z.to_numpy()
+            X = x_y_z.to_numpy()
 
-        dbscan_cluster_model = HDBSCAN(min_samples=200).fit(X)
+            dbscan_cluster_model = HDBSCAN(min_samples=200).fit(X)
 
-        df['cluster'] = dbscan_cluster_model.labels_
+            df['cluster'] = dbscan_cluster_model.labels_
 
-        bin2_rows = df[df['bin'] == 2]
+            bin2_rows = df[df['bin'] == 2]
 
-        # Step 2: Get unique cluster labels associated with bin == 2
-        clusters_with_bin2 = [c for c in bin2_rows['cluster'].unique() if c != -1]
+            # Step 2: Get unique cluster labels associated with bin == 2
+            clusters_with_bin2 = [c for c in bin2_rows['cluster'].unique() if c != -1]
 
-        # Optional: print to verify
-        print("Clusters with bin=2:", clusters_with_bin2)
+            # Optional: print to verify
+            print("Clusters with bin=2:", clusters_with_bin2)
 
-        # Filter rows where cluster is one of those and bin == 2
-        filtered = df[(df['cluster'].isin(clusters_with_bin2)) & (df['bin'] == 2)]
+            # Filter rows where cluster is one of those and bin == 2
+            filtered = df[(df['cluster'].isin(clusters_with_bin2)) & (df['bin'] == 2)]
 
-        # Extract the first six columns (by position or label)
-        subset = filtered.iloc[:, :6]
+            # Extract the first six columns (by position or label)
+            subset = filtered.iloc[:, :6]
 
-        # Append to master DataFrame
-        subset.to_csv(out_master, mode='a', index=False, header=False)
+            # Append to master DataFrame
+            subset.to_csv(out_master, mode='a', index=False, header=False)
 
-        print(f'{scan} merged with master csv')
+            print(f'{scan} merged with master csv')
 
     print('finished')
 

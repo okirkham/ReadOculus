@@ -20,7 +20,8 @@ def main():
     timestamp_list = [
         ("2025.05.21 19:43:57:000", "2025.05.21 19:44:07:000"),
         ("2025.05.21 19:44:34:000", "2025.05.21 19:44:44:000"),
-        ("2025.05.21 19:47:46:000", "2025.05.21 19:49:32:000")
+        ("2025.05.21 19:47:46:000", "2025.05.21 19:49:32:000"),
+        ("2025.05.21 19:50:24:000", "2025.05.21 19:51:09:000")
     ]
 
     #########################################################################################################################################################################################
@@ -35,7 +36,7 @@ def main():
     # All names end with SBT, meaning "Split by Timestamp", allowing for the SBT files to be  distinuged  from unfiltered csv log files.
     # Example name: "Oculus_20250521_194207_CS_50m_S2N1_28_SBT"
 
-    names = ["Oculus_20250521_194207_RF_50_S1_SBT", "Oculus_20250521_194207_RF_50_N1_SBT", "Oculus_20250521_194207_CS_2_S2N1_xx_SBT"]
+    names = ["Oculus_20250521_194207_RF_50_S1_SBT", "Oculus_20250521_194207_RF_50_N1_SBT", "Oculus_20250521_194207_CS_2_S2N1_xx_SBT", "Oculus_20250521_194207_CS_2_N2S1_xx_SBT"]
 
     #########################################################################################################################################################################################
 
@@ -57,14 +58,20 @@ def main():
         name += ".csv"
         csvNames.append(name)
 
-    # Save filtered segments as separate CSV files
+    # Save split segments as separate CSV files
     for (start_str, end_str), name in zip(timestamp_list, csvNames):
-        start = datetime.datetime.strptime(start_str, "%Y.%m.%d %H:%M:%S:%f")
-        end = datetime.datetime.strptime(end_str, "%Y.%m.%d %H:%M:%S:%f")
-        filtered_df = oculus_csv[(oculus_csv["timestamp"] >= start) & (oculus_csv["timestamp"] <= end)]
         outPath = os.path.join(base_path, "sonar", name)
-        filtered_df["timestamp"] = filtered_df["timestamp"].dt.strftime("%Y.%m.%d %H:%M:%S:%f")
-        filtered_df.to_csv(outPath, index=False)
+        #
+        checkName = name.replace("SBT.csv", "SBT_merged.csv")
+        checkPath = os.path.join(base_path, "sonar", checkName)
+        if os.path.exists(checkPath):
+            print()
+        else:
+            start = datetime.datetime.strptime(start_str, "%Y.%m.%d %H:%M:%S:%f")
+            end = datetime.datetime.strptime(end_str, "%Y.%m.%d %H:%M:%S:%f")
+            filtered_df = oculus_csv[(oculus_csv["timestamp"] >= start) & (oculus_csv["timestamp"] <= end)]
+            filtered_df["timestamp"] = filtered_df["timestamp"].dt.strftime("%Y.%m.%d %H:%M:%S:%f")
+            filtered_df.to_csv(outPath, index=False)
 
     del filtered_df
 
@@ -103,28 +110,32 @@ def main():
     for file_name in csvFiles:
         csvPath = os.path.join(base_path, "sonar", file_name)
         filtered_csv = pd.read_csv(csvPath, encoding = "utf-8", sep=',')
-        deadReckoningCombined['timestamp'] = pd.to_datetime(deadReckoningCombined['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
-        filtered_csv['timestamp'] = pd.to_datetime(filtered_csv['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
-
-        filtered_csv = filtered_csv.sort_values('timestamp')
-        deadReckoningCombined = deadReckoningCombined.sort_values('timestamp')
-
-        merged = pd.merge_asof(filtered_csv, deadReckoningCombined, on='timestamp', tolerance=pd.Timedelta('50ms'), direction='nearest')
-
-        merged = merged.dropna(subset=['x (m)'])
-
-        merged = compute_distance(merged)
 
         out_name = file_name.replace("SBT.csv", "SBT_merged.csv")
-
         out_csv = os.path.join(base_path, "sonar", out_name)
 
-        merged["timestamp"] = merged["timestamp"].dt.strftime("%Y.%m.%d %H:%M:%S:%f")
-        merged.to_csv(out_csv, mode = 'a', index=False)
+        if os.path.exists(out_csv):
+            print(f"{out_name}has already been processed")
+        else:
+            deadReckoningCombined['timestamp'] = pd.to_datetime(deadReckoningCombined['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+            filtered_csv['timestamp'] = pd.to_datetime(filtered_csv['timestamp'], format='%Y.%m.%d %H:%M:%S:%f')
+
+            filtered_csv = filtered_csv.sort_values('timestamp')
+            deadReckoningCombined = deadReckoningCombined.sort_values('timestamp')
+
+            merged = pd.merge_asof(filtered_csv, deadReckoningCombined, on='timestamp', tolerance=pd.Timedelta('50ms'), direction='nearest')
+
+            merged = merged.dropna(subset=['x (m)'])
+
+            merged = compute_distance(merged)
+
+            merged["timestamp"] = merged["timestamp"].dt.strftime("%Y.%m.%d %H:%M:%S:%f")
+            merged.to_csv(out_csv, mode = 'a', index=False)
 
     for file_name in csvFiles:
         delPath = os.path.join(base_path, "sonar", file_name)
-        os.remove(delPath)
+        if os.path.exists(delPath):
+            os.remove(delPath)
     
     print("prcoessing complete")
 
