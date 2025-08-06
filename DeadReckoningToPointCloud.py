@@ -26,37 +26,39 @@ def main():
     for merged in mergedList:
         output = False
 
-        if merged[23:25] == "CS":
-            offset = float(merged[33:35])
-            if merged[26:27] == "1":
-                df = crossSection(merged, base_path, offset, meltHole[0], meltHole[1])
-                output = True
-            elif merged[26:27] == "2":
-                df = crossSection(merged, base_path, offset, stake50m[0], stake50m[1])
-                output = True
-            elif merged[26:27] == "3":
-                df = crossSection(merged, base_path, offset, stake100m[0], stake100m[1])
-                output = True
-        # elif merged == "*_Rf_*":
+        out_name = merged.replace("SBT_merged.csv", "SBT_coordinates.csv") 
 
-        # elif merged == "*_SS_*":
+        out_csv = os.path.join(base_path, "data", out_name)
 
-        else:
+        if os.path.exists(out_csv):
             pass
-        
-        if output == True:
+        else:
+            if merged[23:25] == "CS":
+                offset = float(merged[33:35])
+                if merged[26:27] == "1":
+                    df = crossSection(merged, base_path, offset, meltHole[0], meltHole[1])
+                    output = True
+                elif merged[26:27] == "2":
+                    df = crossSection(merged, base_path, offset, stake50m[0], stake50m[1])
+                    output = True
+                elif merged[26:27] == "3":
+                    df = crossSection(merged, base_path, offset, stake100m[0], stake100m[1])
+                    output = True
+            # elif merged == "*_Rf_*":
 
-            out_name = merged.replace("SBT_merged.csv", "SBT_coordinates.csv") 
+            # elif merged == "*_SS_*":
 
-            out_csv = os.path.join(base_path, "data", out_name)
+            else:
+                pass
+            
+            if output == True:              
+                out_df = df[['timestamp', 'distance', 'intensity', 'bearing', 'heading (°)', 
+                            'camera pitch (°)', 'roll (°)', 'total_forward', 'total_right', 
+                            'depth', 'ping_x', 'ping_y', 'ping_z', 'longitude', 'latitude', 'rov_longitude', 'rov_latitude']]
 
-            out_df = df[['timestamp', 'distance', 'intensity', 'bearing', 'heading (°)', 
-                         'camera pitch (°)', 'roll (°)', 'total_forward', 'total_right', 
-                         'depth', 'ping_x', 'ping_y', 'ping_z', 'longitude', 'latitude', 'rov_longitude', 'rov_latitude']]
+                out_df.to_csv(out_csv, mode = 'a', index=False)
 
-            out_df.to_csv(out_csv, mode = 'a', index=False)
-
-            print(f"point cloud {out_name} generated")
+                print(f"point cloud {out_name} generated")
 
 # find filtered and merged oculus files, make a list
 def find_merged_csv(path):
