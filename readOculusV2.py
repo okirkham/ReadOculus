@@ -9,16 +9,20 @@ def main():
     # input misson package path
     base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06"
 
+    # define path to sonar folder
     sonar = os.path.join(base_path, "sonar")
 
+    # locate the oculus file within the sonar folder
     binaryfile = find_oculus(sonar)
 
+    # define path to oculus file
     oculus = os.path.join(base_path, "sonar", binaryfile)
 
+    # define path to scans folder which must be added prior to running the code in the sonar folder
     scans = os.path.join(base_path, "sonar", "scans")
 
+    # open the binary oculus file
     oculusBinary = open(oculus, mode='rb')
-
     sonarData = oculusBinary.read()
     fileSize = len(sonarData)
 
@@ -27,21 +31,21 @@ def main():
     logSize = 242
     bearingStart = position + logSize
 
-    #headerData = header(sonarData)
-
+    # get metadata for the first log item
     dfSonarMeta = sonarLogHeader(sonarData, position, logSize)
 
-    # find beam bearings
+    # find beam bearings, this is done only once as beam bearings do not change over the course of a mission
     numBearings = dfSonarMeta['bearingCount'].values[0]
     bearingList = bearings(sonarData, bearingStart, numBearings)
 
     # calculate estimate message size
     size = dfSonarMeta['messageSize'].values[0]
-
     true_size = size + 40
 
+    # calculate the number of log items
     numItems = int((fileSize-48)/true_size)
 
+    # create a list of timestamps that will be extracted from the oculus file
     timestamp_list = [
         ("2025.05.21 19:43:57:000", "2025.05.21 19:44:07:000"),
         ("2025.05.21 19:44:34:000", "2025.05.21 19:44:44:000"),
@@ -55,12 +59,16 @@ def main():
         for start, end in timestamp_list
     ]
 
+    # define an empty list that will contain the names of log items that have already been converted to csv format
     scannedList = []
 
+    # start iterating through the number of log items
     for item in range(0,numItems):
+        # if the current position + the size of the next item > total log size, break to avoid throwing an error
         if position + logSize > fileSize: 
             break
-
+        
+        # read the metadata from the log item header
         sonarMeta = sonarLogHeader(sonarData, position, logSize)
 
         # extract key values
@@ -71,43 +79,45 @@ def main():
 
         utc_time = datetime.strptime(time, "%Y.%m.%d %H:%M:%S:%f").replace(tzinfo=timezone.utc)
 
-        # Convert to Eastern Daylight Time (UTC-4)
+        # Convert to timestamps Eastern Daylight Time (UTC-4) from UTC-0
         eastern_offset = timedelta(hours=-5)
         eastern_time = (utc_time + eastern_offset).replace(tzinfo=None)
 
+        # if the timestamp of the log item falls within a timestamp in the timestamp list, begin converting the data
         if any(start <= eastern_time <= end for start, end in timestamp_ranges):
             print("Scan time:", eastern_time)
+            # create a clean time stamp that will be used as the csv name
             clean_time = eastern_time.strftime("%Y.%m.%d_%H-%M-%S-%f")[:-3]
             name = f"{clean_time}.csv"
             out_csv = os.path.join(base_path, "sonar", "scans", f"{clean_time}.csv")
 
+            # check if the csv has already been created
             if not os.path.exists(out_csv):
-                # extract sonar data for item
+                # run the payload function to extract data for the item
                 dataList = payload(sonarData, rangeCount, rangeResolution, eastern_time, position, bearingList)
-
-                #flat_data = [item for sublist in dataList for item in sublist]
+                # convert data to a dataframe
                 final_df = pd.DataFrame(dataList, columns=['bearing', 'rangeLine', 'rangeResolution', 'intensity', 
                                         'distance', 'timestamp'])
-            
+                # export data frame to csv  in the scans folder
                 final_df.to_csv(out_csv, mode='a', index=False)
             else:
+                # if csv already exists, add it to the scannedList
                 scannedList.append(name)
                 print('scan already exists')
-
+        # update the position variable to move to the next log itme. 40 is added to reflect the additional log header that is found before the main log header
         position = position + messageSize + 40
     
+    # convert the scannedList to a set for easier searching
     scannedSet = set(scannedList)
 
+    # delete the scanned list and close the oculus file to free up memory
     del scannedList
-
     oculusBinary.close()
 
+    # create the master csv where scans will be merged after preprocessing
     headers = ['bearing', 'rangeLine', 'rangeResolution', 'intensity', 'distance', 'timestamp']
-
     master_df = pd.DataFrame(columns=headers)
-
     out_master_name = binaryfile.replace(".oculus", ".csv")
-
     out_master = os.path.join(base_path, "sonar", out_master_name)
 
     if os.path.exists(out_master):
@@ -115,40 +125,45 @@ def main():
     else:
         master_df.to_csv(out_master, index=False)
 
+    # iterate through all scans in scans folder
     for scan in os.listdir(scans):
+        # ignore previously created scans
         if scan in scannedSet:
             print("scan already added to master csv")
         else:
+            # convert scan csv to data frame
             scan_path = os.path.join(scans, scan)
             df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
 
+            # create new fields that contain the 2d cartesian coordinates of the sonar pings
             df["bearing_cartesian"] = np.radians(90 - df["bearing"])
             df["x"] = df["distance"] * np.cos(df["bearing_cartesian"])
             df["y"] = df["distance"] * np.sin(df["bearing_cartesian"])
 
             df['bin'] = None
 
+            # put the intensity values into bins <4 and <=15
             df['bin'] = pd.cut(
                 df['intensity'],
                 bins=[-float('inf'), 3, 15],
                 labels=[1, 2]
             ).astype('int')
 
+            # create a numpy array with the x, y, and bin fields
             x_y_z = df[['x', 'y', 'bin']]
-
             X = x_y_z.to_numpy()
 
+            # run a HDBSCAN cluster model with the numpy array
             dbscan_cluster_model = HDBSCAN(min_samples=200).fit(X)
 
+            # add a cluster field to the data frame
             df['cluster'] = dbscan_cluster_model.labels_
 
+            # keep only records that have a bin value of 2
             bin2_rows = df[df['bin'] == 2]
 
-            # Step 2: Get unique cluster labels associated with bin == 2
+            # Get unique cluster labels associated with bin == 2 that are not -1 (outliers)
             clusters_with_bin2 = [c for c in bin2_rows['cluster'].unique() if c != -1]
-
-            # Optional: print to verify
-            print("Clusters with bin=2:", clusters_with_bin2)
 
             # Filter rows where cluster is one of those and bin == 2
             filtered = df[(df['cluster'].isin(clusters_with_bin2)) & (df['bin'] == 2)]
