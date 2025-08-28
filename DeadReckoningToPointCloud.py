@@ -49,10 +49,10 @@ def main():
             # elif merged == "*_SS_*":
 
             else:
-                pass
+                print(f"coordinates cannot be generated from {merged}")
             
             if output == True:              
-                out_df = df[['timestamp', 'distance', 'intensity', 'bearing', 'heading (°)', 
+                out_df = df[['timestamp', 'distance', 'intensity', 'bearing', 'heading (°)', 'adjusted_heading',
                             'camera pitch (°)', 'roll (°)', 'total_forward', 'total_right', 
                             'depth', 'ping_x', 'ping_y', 'ping_z', 'longitude', 'latitude', 'rov_longitude', 'rov_latitude']]
 
@@ -140,7 +140,7 @@ def compute_sonar_ping(row):
     """Compute the Cartesian coordinates of the sonar ping for a row in the DataFrame
     
     """
-    bearing, heading, pitch, roll = row['bearing'], row['heading (°)'], row['camera pitch (°)'], row['roll (°)']
+    bearing, heading, pitch, roll = row['bearing'], row['adjusted_heading'], row['camera pitch (°)'], row['roll (°)']
     x, y, z = row['total_forward'], row['total_right'], row['depth']
     ping_distance = row['distance']
 
@@ -165,12 +165,13 @@ def createPointCloud(df, easting, northing):
         # Apply the function to each row and assign the result to the DataFrame
         df[['ping_x', 'ping_y', 'ping_z']] = df.apply(compute_sonar_ping, axis=1)
 
-        # Compute the new UTM coordinates by simply adding the displacements
-        df['ping_easting'] = easting + df['ping_x']
-        df['ping_northing'] = northing + df['ping_y']
+        # Compute the new UTM coordinates by adding the displacements
+        df['ping_easting'] = easting - df['ping_y']
+        df['ping_northing'] = northing - df['ping_x']
 
-        df['rov_easting'] = easting + df['total_forward']
-        df['rov_northing'] = northing + df['total_right']
+
+        df['rov_easting'] = easting + df['total_right']
+        df['rov_northing'] = northing + df['total_forward']
 
         source_crs = "epsg:32617"
         target_crs = "epsg:4326"
@@ -199,6 +200,7 @@ def crossSection(csvName, basepath, offset, easting, northing):
     csv = input split and merged csv, basepath = path to root directory, offset = distance from reference waypoint, easting, northing
 
     """
+    print(f"generating coordinates for {csvName}")
 
     csvPath = os.path.join(basepath, "sonar", csvName)
 
@@ -210,17 +212,23 @@ def crossSection(csvName, basepath, offset, easting, northing):
     if code.startswith("S2N"):
         csv_df['total_forward'] = csv_df['total_forward'] * -1
         csv_df['total_forward'] = csv_df['total_forward'] + offset
+        csv_df['adjusted_heading'] = 0
+
+        df = createPointCloud(csv_df, easting, northing)
+
+        return df
+    
+    elif code.startswith("N2S"):
+        csv_df['total_forward'] = csv_df['total_forward'] - offset
+        csv_df['total_right'] = csv_df['total_right'] * -1
+        csv_df['adjusted_heading'] = 180
 
         df = createPointCloud(csv_df, easting, northing)
 
         return df
     else:
-        csv_df['total_forward'] = csv_df['total_forward'] - offset
-        csv_df['total_right'] = csv_df['total_right'] * -1
+        print(f"{csvName} is invalid")
 
-        df = createPointCloud(csv_df, easting, northing)
-
-        return df
     
 def rangeFinding(csvName, basepath, easting, northing):
     csvPath = os.path.join(basepath, "sonar", csvName)
