@@ -31,10 +31,15 @@ def main():
         out_csv = os.path.join(base_path, "data", out_name)
 
         if os.path.exists(out_csv):
+            print(f'{out_csv} already exists')
             pass
         else:
             if merged[23:25] == "CS":
-                offset = float(merged[33:35])
+                try: 
+                    offset = float(merged[33:35])
+                except ValueError:
+                    print(f"survey offset for {merged} is incorrect")
+
                 if merged[26:27] == "1":
                     df = crossSection(merged, base_path, offset, meltHole[0], meltHole[1])
                     output = True
@@ -53,7 +58,7 @@ def main():
             
             if output == True:              
                 out_df = df[['timestamp', 'distance', 'intensity', 'bearing', 'heading (°)', 'adjusted_heading',
-                            'camera pitch (°)', 'roll (°)', 'total_forward', 'total_right', 
+                            'camera pitch (°)', 'roll (°)', 'total_forward', 'total_right', 'x', 'y',
                             'depth', 'ping_x', 'ping_y', 'ping_z', 'longitude', 'latitude', 'rov_longitude', 'rov_latitude']]
 
                 out_df.to_csv(out_csv, mode = 'a', index=False)
@@ -78,8 +83,8 @@ def compute_beam_pitch_and_heading(initial_pitch, roll, beam_bearing, initial_he
     bearing_rad = math.radians(beam_bearing)
     
     v = np.array([
-        math.cos(pitch_rad) * math.cos(bearing_rad),
-        math.cos(pitch_rad) * math.sin(bearing_rad),
+        math.cos(pitch_rad) * math.cos(-bearing_rad),
+        math.cos(pitch_rad) * math.sin(-bearing_rad),
         math.sin(pitch_rad)
     ])
     
@@ -111,7 +116,7 @@ def rotation_matrix(heading, pitch, roll):
     """
     # Convert degrees to radians
     heading = np.radians(heading)
-    pitch = np.radians(pitch)  # Negate pitch to correct for coordinate system
+    pitch = np.radians(pitch)
     roll = np.radians(roll)
 
     # Rotation matrices
@@ -141,14 +146,14 @@ def compute_sonar_ping(row):
     
     """
     bearing, heading, pitch, roll = row['bearing'], row['adjusted_heading'], row['camera pitch (°)'], row['roll (°)']
-    x, y, z = row['total_forward'], row['total_right'], row['depth']
+    x, y, z = row['x'], row['y'], row['depth']
     ping_distance = row['distance']
 
     new_pitch, new_heading, new_roll = compute_beam_pitch_and_heading(pitch, roll, bearing, heading)
 
     r = rotation_matrix(new_heading, new_pitch, new_roll)
 
-    ping_local = np.array([-1*ping_distance,0,0,])
+    ping_local = np.array([ping_distance,0,0,])
 
         # Transform ping to global frame
     ping_global = r @ ping_local
@@ -166,12 +171,12 @@ def createPointCloud(df, easting, northing):
         df[['ping_x', 'ping_y', 'ping_z']] = df.apply(compute_sonar_ping, axis=1)
 
         # Compute the new UTM coordinates by adding the displacements
-        df['ping_easting'] = easting - df['ping_y']
-        df['ping_northing'] = northing - df['ping_x']
+        df['ping_easting'] = easting + df['ping_y']
+        df['ping_northing'] = northing + df['ping_x']
 
 
-        df['rov_easting'] = easting + df['total_right']
-        df['rov_northing'] = northing + df['total_forward']
+        df['rov_easting'] = easting + df['y']
+        df['rov_northing'] = northing + df['x']
 
         source_crs = "epsg:32617"
         target_crs = "epsg:4326"
@@ -210,8 +215,9 @@ def crossSection(csvName, basepath, offset, easting, northing):
     code = csvName[28:31]
 
     if code.startswith("S2N"):
-        csv_df['total_forward'] = csv_df['total_forward'] * -1
-        csv_df['total_forward'] = csv_df['total_forward'] + offset
+        csv_df['x'] = csv_df['total_forward'] 
+        csv_df['x'] = csv_df['x'] - offset
+        csv_df['y'] = csv_df['total_right']
         csv_df['adjusted_heading'] = 0
 
         df = createPointCloud(csv_df, easting, northing)
@@ -219,15 +225,16 @@ def crossSection(csvName, basepath, offset, easting, northing):
         return df
     
     elif code.startswith("N2S"):
-        csv_df['total_forward'] = csv_df['total_forward'] - offset
-        csv_df['total_right'] = csv_df['total_right'] * -1
+        csv_df['x'] = csv_df['total_forward'] * -1
+        csv_df['x'] = csv_df['x'] + offset
+        csv_df['y'] = csv_df['total_right'] * -1
         csv_df['adjusted_heading'] = 180
 
         df = createPointCloud(csv_df, easting, northing)
 
         return df
     else:
-        print(f"{csvName} is invalid")
+        print(f"survey code for {csvName} is invalid")
 
     
 def rangeFinding(csvName, basepath, easting, northing):
