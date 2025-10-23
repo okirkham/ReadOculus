@@ -7,6 +7,14 @@ import pyproj
 
 
 def main():
+    '''
+    DeadReckoningToPointCloud.py
+
+    Converts filtered and merged Oculus sonar csv files into point clouds with UTM and lat/lon coordinates
+
+    Use in conjunction with readOculusV2 and ProcessOculusCSV.py
+    
+    '''
     # base path of mission package
     
     # coordinates of starting position [easting, northing]

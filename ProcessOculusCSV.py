@@ -6,11 +6,13 @@ import datetime
 
 def main():
     '''
-    ProcesspculusCSV.py
+    ProcessOculusCSV.py
 
     Takes the raw csv sonar output from readOculus.py and merges it with positioning data from the combined_log and the dvl_deadreckoning_log
 
     Before running the script, base_path, timestamp_list and names should be modified to the desired input
+
+    Use in conjunction with readOculusV2 and DeadReckoningToPointCloud.py
     '''
 
     # base path of ROV mission package

@@ -6,6 +6,16 @@ import numpy as np
 from sklearn.cluster import HDBSCAN
 
 def main():
+    '''
+    readOculusV2.py
+
+    Reads the binary .oculus file and extracts sonar data within specified timestamp ranges.
+
+    Before running the script, modify base_path and timestamp_list to the desired input
+
+    Use in conjunction with ProcessOculusCSV.py and DeadReckoningToPointCloud.py
+    
+    '''
     # input misson package path
     # add a folder called "scans" in the sonar folder
     # change timestamps under "timestamp_list"
@@ -167,8 +177,14 @@ def main():
             # Get unique cluster labels associated with bin == 2 that are not -1 (outliers)
             clusters_with_bin2 = [c for c in bin2_rows['cluster'].unique() if c != -1]
 
-            # Filter rows where cluster is one of those and bin == 2
-            filtered = df[(df['cluster'].isin(clusters_with_bin2)) & (df['bin'] == 2)]
+            # If there are clusters, select the one with the lowest average y value
+            if clusters_with_bin2:
+                avg_y_per_cluster = bin2_rows.groupby('cluster')['y'].mean()
+                cluster_with_lowest_y = avg_y_per_cluster.idxmin()
+                # Filter rows where cluster is the selected one and bin == 2
+                filtered = df[(df['cluster'] == cluster_with_lowest_y) & (df['bin'] == 2)]
+            else:
+                filtered = pd.DataFrame(columns=df.columns)  # Empty DataFrame if no clusters
 
             # Extract the first six columns (by position or label)
             subset = filtered.iloc[:, :6]
