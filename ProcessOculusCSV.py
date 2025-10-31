@@ -16,11 +16,14 @@ def main():
     '''
 
     # base path of ROV mission package
-    base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-22_15-35-54"
+    base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06"
 
     # List of timestamps to be extracted 
     timestamp_list = [
-        ("2025.05.22 15:38:16:000", "2025.05.22 15:39:19:000")
+        ("2025.05.21 19:43:57:000", "2025.05.21 19:44:07:000"),
+        ("2025.05.21 19:44:34:000", "2025.05.21 19:44:44:000"),
+        ("2025.05.21 19:47:46:000", "2025.05.21 19:49:32:000"),
+        ("2025.05.21 19:50:24:000", "2025.05.21 19:51:09:000")
     ]
 
     #########################################################################################################################################################################################
@@ -35,7 +38,7 @@ def main():
     # All names end with SBT, meaning "Split by Timestamp", allowing for the SBT files to be  distinuged  from unfiltered csv log files.
     # Example name: "Oculus_20250521_194207_CS_2_S2N1_xx_SBT"
 
-    names = ["Oculus_20250522_153554_CS_3_S2N1_xx_SBT"]
+    names = ["Oculus_20250521_194207_RF_50_S1_SBT", "Oculus_20250521_194207_RF_50_N1_SBT", "Oculus_20250521_194207_CS_2_S2N1_xx_SBT", "Oculus_20250521_194207_CS_2_N2S1_xx_SBT"]
 
     #########################################################################################################################################################################################
 

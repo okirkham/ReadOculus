@@ -19,7 +19,7 @@ def main():
     # input misson package path
     # add a folder called "scans" in the sonar folder
     # change timestamps under "timestamp_list"
-    base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-22_15-35-54"
+    base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06"
 
     # define path to sonar folder
     sonar = os.path.join(base_path, "sonar")
@@ -35,6 +35,7 @@ def main():
 
     # open the binary oculus file
     oculusBinary = open(oculus, mode='rb')
+    
     sonarData = oculusBinary.read()
     fileSize = len(sonarData)
 
@@ -59,7 +60,10 @@ def main():
 
     # create a list of timestamps that will be extracted from the oculus file
     timestamp_list = [
-        ("2025.05.22 15:38:16:000", "2025.05.22 15:39:19:000")
+        ("2025.05.21 19:43:57:000", "2025.05.21 19:44:07:000"),
+        ("2025.05.21 19:44:34:000", "2025.05.21 19:44:44:000"),
+        ("2025.05.21 19:47:46:000", "2025.05.21 19:49:32:000"),
+        ("2025.05.21 19:50:24:000", "2025.05.21 19:51:09:000")
     ]
 
     timestamp_ranges = [
