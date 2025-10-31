@@ -35,7 +35,6 @@ def main():
 
     # open the binary oculus file
     oculusBinary = open(oculus, mode='rb')
-    
     sonarData = oculusBinary.read()
     fileSize = len(sonarData)
 
