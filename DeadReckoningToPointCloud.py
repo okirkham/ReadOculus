@@ -236,32 +236,13 @@ def crossSection(csvName, basepath, offset, easting, northing):
         csv_df['x'] = csv_df['total_forward'] * -1
         csv_df['x'] = csv_df['x'] + offset
         csv_df['y'] = csv_df['total_right'] * -1
-        csv_df['adjusted_heading'] = 180
+        csv_df['adjusted_heading'] = 122.5
 
         df = createPointCloud(csv_df, easting, northing)
 
         return df
     else:
         print(f"survey code for {csvName} is invalid")
-
-    
-def rangeFinding(csvName, basepath, easting, northing):
-    csvPath = os.path.join(basepath, "sonar", csvName)
-
-    csv_df = pd.read_csv(csvPath, encoding = "utf-8", sep=',')
-
-    # extract survey code
-    code = csvName[29:30]
-
-    if code.startswith("S"):
-
-        df = createPointCloud(csv_df, easting, northing)
-
-        return df
-    else:
-        df = createPointCloud(csv_df, easting, northing)
-
-        return df
     
     
 if __name__ == "__main__":

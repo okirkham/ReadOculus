@@ -13,9 +13,13 @@ def main():
 
     Before running the script, modify base_path and timestamp_list to the desired input
 
+    Create a folder called "scans" in the sonar folder to store individual scan CSV files.
+
     Use in conjunction with ProcessOculusCSV.py and DeadReckoningToPointCloud.py
     
     '''
+    filter = False
+
     # input misson package path
     # add a folder called "scans" in the sonar folder
     # change timestamps under "timestamp_list"
@@ -59,10 +63,7 @@ def main():
 
     # create a list of timestamps that will be extracted from the oculus file
     timestamp_list = [
-        ("2025.05.21 19:43:57:000", "2025.05.21 19:44:07:000"),
-        ("2025.05.21 19:44:34:000", "2025.05.21 19:44:44:000"),
-        ("2025.05.21 19:47:46:000", "2025.05.21 19:49:32:000"),
-        ("2025.05.21 19:50:24:000", "2025.05.21 19:51:09:000")
+        ("2025.05.21 19:50:24:000", "2025.05.21 19:51:03:000")
     ]
 
     timestamp_ranges = [
@@ -146,57 +147,63 @@ def main():
         if scan in scannedSet:
             print("scan already added to master csv")
         else:
-            # convert scan csv to data frame
-            scan_path = os.path.join(scans, scan)
-            df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
+            if filter == True:
+                # convert scan csv to data frame
+                scan_path = os.path.join(scans, scan)
+                df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
 
-            # create new fields that contain the 2d cartesian coordinates of the sonar pings
-            df["bearing_cartesian"] = np.radians(90 - df["bearing"])
-            df["x"] = df["distance"] * np.cos(df["bearing_cartesian"])
-            df["y"] = df["distance"] * np.sin(df["bearing_cartesian"])
+                # create new fields that contain the 2d cartesian coordinates of the sonar pings
+                df["bearing_cartesian"] = np.radians(90 - df["bearing"])
+                df["x"] = df["distance"] * np.cos(df["bearing_cartesian"])
+                df["y"] = df["distance"] * np.sin(df["bearing_cartesian"])
 
-            df['bin'] = None
+                df['bin'] = None
 
-            # put the intensity values into bins <4 and <=15
-            df['bin'] = pd.cut(
-                df['intensity'],
-                bins=[-float('inf'), 3, 15],
-                labels=[1, 2]
-            ).astype('int')
+                # put the intensity values into bins <4 and <=15
+                df['bin'] = pd.cut(
+                    df['intensity'],
+                    bins=[-float('inf'), 3, 15],
+                    labels=[1, 2]
+                ).astype('int')
 
-            # create a numpy array with the x, y, and bin fields
-            x_y_z = df[['x', 'y', 'bin']]
-            X = x_y_z.to_numpy()
+                # create a numpy array with the x, y, and bin fields
+                x_y_z = df[['x', 'y', 'bin']]
+                X = x_y_z.to_numpy()
 
-            # run a HDBSCAN cluster model with the numpy array
-            dbscan_cluster_model = HDBSCAN(min_samples=200).fit(X)
+                # run a HDBSCAN cluster model with the numpy array
+                dbscan_cluster_model = HDBSCAN(min_samples=200).fit(X)
 
-            # add a cluster field to the data frame
-            df['cluster'] = dbscan_cluster_model.labels_
+                # add a cluster field to the data frame
+                df['cluster'] = dbscan_cluster_model.labels_
 
-            # keep only records that have a bin value of 2
-            bin2_rows = df[df['bin'] == 2]
+                # keep only records that have a bin value of 2
+                bin2_rows = df[df['bin'] == 2]
 
-            # Get unique cluster labels associated with bin == 2 that are not -1 (outliers)
-            clusters_with_bin2 = [c for c in bin2_rows['cluster'].unique() if c != -1]
+                # Get unique cluster labels associated with bin == 2 that are not -1 (outliers)
+                clusters_with_bin2 = [c for c in bin2_rows['cluster'].unique() if c != -1]
 
-            # If there are clusters, select the one with the lowest average y value
-            if clusters_with_bin2:
-                avg_y_per_cluster = bin2_rows.groupby('cluster')['y'].mean()
-                cluster_with_lowest_y = avg_y_per_cluster.idxmin()
-                # Filter rows where cluster is the selected one and bin == 2
-                filtered = df[(df['cluster'] == cluster_with_lowest_y) & (df['bin'] == 2)]
+                # If there are clusters, select the one with the lowest average y value
+                if clusters_with_bin2:
+                    avg_y_per_cluster = bin2_rows.groupby('cluster')['y'].mean()
+                    cluster_with_lowest_y = avg_y_per_cluster.idxmin()
+                    # Filter rows where cluster is the selected one and bin == 2
+                    filtered = df[(df['cluster'] == cluster_with_lowest_y) & (df['bin'] == 2)]
+                else:
+                    filtered = pd.DataFrame(columns=df.columns)
+
+                # Extract the first six columns
+                subset = filtered.iloc[:, :6]
+
+                # Append to master DataFrame
+                subset.to_csv(out_master, mode='a', index=False, header=False)
+
+                print(f'{scan} merged with master csv')
             else:
-                filtered = pd.DataFrame(columns=df.columns)  # Empty DataFrame if no clusters
-
-            # Extract the first six columns (by position or label)
-            subset = filtered.iloc[:, :6]
-
-            # Append to master DataFrame
-            subset.to_csv(out_master, mode='a', index=False, header=False)
-
-            print(f'{scan} merged with master csv')
-
+                # if no filtering is required, append the scan to the master csv
+                scan_path = os.path.join(scans, scan)
+                df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
+                df.to_csv(out_master, mode='a', index=False, header=False)
+                print(f'{scan} merged with master csv')
     print('finished')
 
 def find_oculus(path):
@@ -359,8 +366,10 @@ def bearings(data, bearingStart, numBearings):
         bearing = struct.unpack(data_format, x)[0] / 100 
         bearings.append(bearing) 
         n += 2 
-    
-    filtered_bearings = bearings[48:208]
+
+    # change to filter out more or less bearings
+    filtered_bearings = bearings[118:138]
+    # filtered_bearings = bearings[48:208]
 
     return filtered_bearings 
 
@@ -388,12 +397,13 @@ def payload(data, rangeCount, rangeResolution, time, position, bearings):
 
     all_data_np = np.array(all_data)
 
-    # Slice columns 48 to 207 (Python excludes the last index)
-    filtered_data = all_data_np[:, 48:208]  # Shape: (num_rows, 160)
+    # Slice columns to get filtered bearings, change to filter out more or less bearings
+    filtered_data = all_data_np[:, 118:138]  
+    # filtered_data = all_data_np[:, 48:208]  
 
-    # Loop through bearings and grab column i efficiently
+    # Loop through bearings and grab column i 
     for i, bearing in enumerate(bearings):
-        pings = filtered_data[:, i]  # Just one slice, super fast
+        pings = filtered_data[:, i]  
         for col_index, ping in enumerate(pings):
             # ping is the intensity value
             if ping > 0 and col_index < upperRangeCutoff and col_index > lowerRangeCutoff:

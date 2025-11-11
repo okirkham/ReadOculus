@@ -38,7 +38,7 @@ def main():
     # All names end with SBT, meaning "Split by Timestamp", allowing for the SBT files to be  distinuged  from unfiltered csv log files.
     # Example name: "Oculus_20250521_194207_CS_2_S2N1_xx_SBT"
 
-    names = ["Oculus_20250521_194207_RF_50_S1_SBT", "Oculus_20250521_194207_RF_50_N1_SBT", "Oculus_20250521_194207_CS_2_S2N1_xx_SBT", "Oculus_20250521_194207_CS_2_N2S1_xx_SBT"]
+    names = ["Oculus_20250521_194207_CS_2_N2S1_xx_SBT"]
 
     #########################################################################################################################################################################################
 
