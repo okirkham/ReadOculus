@@ -11,19 +11,32 @@ def main():
 
     Reads the binary .oculus file and extracts sonar data within specified timestamp ranges.
 
-    Before running the script, modify base_path and timestamp_list to the desired input
+    Before running the script, modify base_path, timestamp_list, bearingRange and cluster to the desired input, found under settings
 
     Create a folder called "scans" in the sonar folder to store individual scan CSV files.
 
-    Use in conjunction with ProcessOculusCSV.py and DeadReckoningToPointCloud.py
+    Script will automatically remove data from first and last 2% of range to reduce sonar noise
+
+    Use in conjunction with ProcessOculusCSV.py and DeadReckoningToPointCloud.py 
     
     '''
-    filter = False
+    # settings ###################################################################################################################################################################################
+    
+    # adjust bearing range to remove bearings from output data. Values must be between 0 and 255. 48,208 is default.
+    bearingRange = [124,132] 
+
+    # If True, scans will be filtered with the HDBSCAN clustering algorithm and merged into a master dataset. If False script will only produce indvidual scans in the scan folder
+    cluster = False 
 
     # input misson package path
-    # add a folder called "scans" in the sonar folder
-    # change timestamps under "timestamp_list"
-    base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06"
+    base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06"  
+
+    # A list of timestamps for scans that will be extracted from the oculus file
+    timestamp_list = [
+        ("2025.05.21 19:50:24:000", "2025.05.21 19:51:03:000")
+    ] 
+
+    ##############################################################################################################################################################################################
 
     # define path to sonar folder
     sonar = os.path.join(base_path, "sonar")
@@ -61,11 +74,6 @@ def main():
     # calculate the number of log items
     numItems = int((fileSize-48)/true_size)
 
-    # create a list of timestamps that will be extracted from the oculus file
-    timestamp_list = [
-        ("2025.05.21 19:50:24:000", "2025.05.21 19:51:03:000")
-    ]
-
     timestamp_ranges = [
         (datetime.strptime(start, "%Y.%m.%d %H:%M:%S:%f"),
         datetime.strptime(end, "%Y.%m.%d %H:%M:%S:%f"))
@@ -84,7 +92,7 @@ def main():
         # read the metadata from the log item header
         sonarMeta = sonarLogHeader(sonarData, position, logSize)
 
-        # extract key values
+        # extract dict key values
         rangeCount = sonarMeta['rangeCount'].values[0]
         rangeResolution = sonarMeta['rangeResolution'].values[0]
         time = sonarMeta['time'].values[0]
@@ -120,90 +128,85 @@ def main():
         # update the position variable to move to the next log itme. 40 is added to reflect the additional log header that is found before the main log header
         position = position + messageSize + 40
 
-    # if scannedList == []:
-    #     print('No scans were created, please change timestamps')
+    if scannedList == []:
+        print('No scans were created, please change timestamps')
     
-    # # convert the scannedList to a set for easier searching
-    # scannedSet = set(scannedList)
+    # convert the scannedList to a set for easier searching
+    scannedSet = set(scannedList)
 
-    # # delete the scanned list and close the oculus file to free up memory
-    # del scannedList
-    # oculusBinary.close()
+    # delete the scanned list and close the oculus file to free up memory
+    del scannedList
+    oculusBinary.close()
 
-    # # create the master csv where scans will be merged after preprocessing
-    # headers = ['bearing', 'rangeLine', 'rangeResolution', 'intensity', 'distance', 'timestamp']
-    # master_df = pd.DataFrame(columns=headers)
-    # out_master_name = binaryfile.replace(".oculus", ".csv")
-    # out_master = os.path.join(base_path, "sonar", out_master_name)
+    if cluster == True:
+        # create the master csv where scans will be merged after preprocessing
+        headers = ['bearing', 'rangeLine', 'rangeResolution', 'intensity', 'distance', 'timestamp']
+        master_df = pd.DataFrame(columns=headers)
+        out_master_name = binaryfile.replace(".oculus", ".csv")
+        out_master = os.path.join(base_path, "sonar", out_master_name)
 
-    # if os.path.exists(out_master):
-    #     print("master csv already exists")
-    # else:
-    #     master_df.to_csv(out_master, index=False)
+        if os.path.exists(out_master):
+            print("master csv already exists")
+        else:
+            master_df.to_csv(out_master, index=False)
+        
+        # iterate through all scans in scans folder
+        for scan in os.listdir(scans):
+            # ignore previously created scans
+            if scan in scannedSet:
+                print("scan already added to master csv")
+            else:
+                # convert scan csv to data frame
+                scan_path = os.path.join(scans, scan)
+                df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
 
-    # # iterate through all scans in scans folder
-    # for scan in os.listdir(scans):
-    #     # ignore previously created scans
-    #     if scan in scannedSet:
-    #         print("scan already added to master csv")
-    #     else:
-    #         if filter == True:
-    #             # convert scan csv to data frame
-    #             scan_path = os.path.join(scans, scan)
-    #             df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
+                # create new fields that contain the 2d cartesian coordinates of the sonar pings
+                df["bearing_cartesian"] = np.radians(90 - df["bearing"])
+                df["x"] = df["distance"] * np.cos(df["bearing_cartesian"])
+                df["y"] = df["distance"] * np.sin(df["bearing_cartesian"])
 
-    #             # create new fields that contain the 2d cartesian coordinates of the sonar pings
-    #             df["bearing_cartesian"] = np.radians(90 - df["bearing"])
-    #             df["x"] = df["distance"] * np.cos(df["bearing_cartesian"])
-    #             df["y"] = df["distance"] * np.sin(df["bearing_cartesian"])
+                df['bin'] = None
 
-    #             df['bin'] = None
+                # put the intensity values into bins <4 and <=15
+                df['bin'] = pd.cut(
+                    df['intensity'],
+                    bins=[-float('inf'), 3, 15],
+                    labels=[1, 2]
+                ).astype('int')
 
-    #             # put the intensity values into bins <4 and <=15
-    #             df['bin'] = pd.cut(
-    #                 df['intensity'],
-    #                 bins=[-float('inf'), 3, 15],
-    #                 labels=[1, 2]
-    #             ).astype('int')
+                # create a numpy array with the x, y, and bin fields
+                x_y_z = df[['x', 'y', 'bin']]
+                X = x_y_z.to_numpy()
 
-    #             # create a numpy array with the x, y, and bin fields
-    #             x_y_z = df[['x', 'y', 'bin']]
-    #             X = x_y_z.to_numpy()
+                # run a HDBSCAN cluster model with the numpy array
+                dbscan_cluster_model = HDBSCAN(min_samples=200).fit(X)
 
-    #             # run a HDBSCAN cluster model with the numpy array
-    #             dbscan_cluster_model = HDBSCAN(min_samples=200).fit(X)
+                # add a cluster field to the data frame
+                df['cluster'] = dbscan_cluster_model.labels_
 
-    #             # add a cluster field to the data frame
-    #             df['cluster'] = dbscan_cluster_model.labels_
+                # keep only records that have a bin value of 2
+                bin2_rows = df[df['bin'] == 2]
 
-    #             # keep only records that have a bin value of 2
-    #             bin2_rows = df[df['bin'] == 2]
+                # Get unique cluster labels associated with bin == 2 that are not -1 (outliers)
+                clusters_with_bin2 = [c for c in bin2_rows['cluster'].unique() if c != -1]
 
-    #             # Get unique cluster labels associated with bin == 2 that are not -1 (outliers)
-    #             clusters_with_bin2 = [c for c in bin2_rows['cluster'].unique() if c != -1]
+                # If there are clusters, select the one with the lowest average y value
+                if clusters_with_bin2:
+                    avg_y_per_cluster = bin2_rows.groupby('cluster')['y'].mean()
+                    cluster_with_lowest_y = avg_y_per_cluster.idxmin()
+                    # Filter rows where cluster is the selected one and bin == 2
+                    filtered = df[(df['cluster'] == cluster_with_lowest_y) & (df['bin'] == 2)]
+                else:
+                    filtered = pd.DataFrame(columns=df.columns)
 
-    #             # If there are clusters, select the one with the lowest average y value
-    #             if clusters_with_bin2:
-    #                 avg_y_per_cluster = bin2_rows.groupby('cluster')['y'].mean()
-    #                 cluster_with_lowest_y = avg_y_per_cluster.idxmin()
-    #                 # Filter rows where cluster is the selected one and bin == 2
-    #                 filtered = df[(df['cluster'] == cluster_with_lowest_y) & (df['bin'] == 2)]
-    #             else:
-    #                 filtered = pd.DataFrame(columns=df.columns)
+                # Extract the first six columns
+                subset = filtered.iloc[:, :6]
 
-    #             # Extract the first six columns
-    #             subset = filtered.iloc[:, :6]
+                # Append to master DataFrame
+                subset.to_csv(out_master, mode='a', index=False, header=False)
 
-    #             # Append to master DataFrame
-    #             subset.to_csv(out_master, mode='a', index=False, header=False)
+                print(f'{scan} merged with master csv')
 
-    #             print(f'{scan} merged with master csv')
-    #         else:
-    #             # if no filtering is required, append the scan to the master csv
-    #             scan_path = os.path.join(scans, scan)
-    #             df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
-    #             df.to_csv(out_master, mode='a', index=False, header=False)
-    #             print(f'{scan} merged with master csv')
     print('finished')
 
 def find_oculus(path):
@@ -354,7 +357,7 @@ def binaryConverter(binary):
 
     return [binary_map[i] for i in nibbleReader(binary)]
 
-def bearings(data, bearingStart, numBearings): 
+def bearings(data, bearingStart, numBearings, bearingRange): 
     '''
     Make a list of sonar bearings
     '''
@@ -367,13 +370,11 @@ def bearings(data, bearingStart, numBearings):
         bearings.append(bearing) 
         n += 2 
 
-    # change to filter out more or less bearings
-    filtered_bearings = bearings[124:132]
-    # filtered_bearings = bearings[48:208]
+    filtered_bearings = bearings[bearingRange[0]:bearingRange[1]]
 
     return filtered_bearings 
 
-def payload(data, rangeCount, rangeResolution, time, position, bearings): 
+def payload(data, rangeCount, rangeResolution, time, position, bearings, bearingRange): 
     payloadStart = position + 2088
     all_data = []
     upperRangeCutoff = rangeCount * 0.98
@@ -398,8 +399,7 @@ def payload(data, rangeCount, rangeResolution, time, position, bearings):
     all_data_np = np.array(all_data)
 
     # Slice columns to get filtered bearings, change to filter out more or less bearings
-    filtered_data = all_data_np[:, 124:132]  
-    # filtered_data = all_data_np[:, 48:208]  
+    filtered_data = all_data_np[:, bearingRange[0]:bearingRange[1]]
 
     # Loop through bearings and grab column i 
     for i, bearing in enumerate(bearings):
