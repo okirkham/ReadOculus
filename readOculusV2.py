@@ -20,9 +20,9 @@ def main():
     Use in conjunction with ProcessOculusCSV.py and DeadReckoningToPointCloud.py 
     
     '''
-    # settings ###################################################################################################################################################################################
+    ################################################################################## settings ###################################################################################
     
-    # adjust bearing range to remove bearings from output data. Values must be between 0 and 255. 48,208 is default.
+    # adjust bearing range to remove bearings from output data. Values must be between 0 and 255. 48,208 is default
     bearingRange = [124,132] 
 
     # If True, scans will be filtered with the HDBSCAN clustering algorithm and merged into a master dataset. If False script will only produce indvidual scans in the scan folder
@@ -34,9 +34,12 @@ def main():
     # A list of timestamps for scans that will be extracted from the oculus file
     timestamp_list = [
         ("2025.05.21 19:50:24:000", "2025.05.21 19:51:03:000")
-    ] 
+    ]
 
-    ##############################################################################################################################################################################################
+    # If True, scans will include all data, including 0 intensity pings which represent the absence of a ping. If False, data will only include pings greater then 0
+    includeZeros = False
+
+    ###############################################################################################################################################################################
 
     # define path to sonar folder
     sonar = os.path.join(base_path, "sonar")
@@ -65,7 +68,7 @@ def main():
 
     # find beam bearings, this is done only once as beam bearings do not change over the course of a mission
     numBearings = dfSonarMeta['bearingCount'].values[0]
-    bearingList = bearings(sonarData, bearingStart, numBearings)
+    bearingList = bearings(sonarData, bearingStart, numBearings, bearingRange)
 
     # calculate estimate message size
     size = dfSonarMeta['messageSize'].values[0]
@@ -84,7 +87,7 @@ def main():
     scannedList = []
 
     # start iterating through the number of log items
-    for item in range(0,numItems):
+    for i in range(0,numItems):
         # if the current position + the size of the next item > total log size, break to avoid throwing an error
         if position + logSize > fileSize: 
             break
@@ -115,7 +118,7 @@ def main():
             # check if the csv has already been created
             if not os.path.exists(out_csv):
                 # run the payload function to extract data for the item
-                dataList = payload(sonarData, rangeCount, rangeResolution, eastern_time, position, bearingList)
+                dataList = payload(sonarData, rangeCount, rangeResolution, eastern_time, position, bearingList, bearingRange, includeZeros)
                 # convert data to a dataframe
                 final_df = pd.DataFrame(dataList, columns=['bearing', 'rangeLine', 'rangeResolution', 'intensity', 
                                         'distance', 'timestamp'])
@@ -374,7 +377,7 @@ def bearings(data, bearingStart, numBearings, bearingRange):
 
     return filtered_bearings 
 
-def payload(data, rangeCount, rangeResolution, time, position, bearings, bearingRange): 
+def payload(data, rangeCount, rangeResolution, time, position, bearings, bearingRange, includeZeros): 
     payloadStart = position + 2088
     all_data = []
     upperRangeCutoff = rangeCount * 0.98
@@ -406,9 +409,14 @@ def payload(data, rangeCount, rangeResolution, time, position, bearings, bearing
         pings = filtered_data[:, i]  
         for col_index, ping in enumerate(pings):
             # ping is the intensity value
-            if ping > 0 and col_index < upperRangeCutoff and col_index > lowerRangeCutoff:
-                new_row = [bearing, col_index, rangeResolution, ping, (col_index * rangeResolution), time]
-                out_data.append(new_row)
+            if includeZeros == False:
+                if ping > 0 and col_index < upperRangeCutoff and col_index > lowerRangeCutoff:
+                    new_row = [bearing, col_index, rangeResolution, ping, (col_index * rangeResolution), time]
+                    out_data.append(new_row)
+            else:
+                if col_index < upperRangeCutoff and col_index > lowerRangeCutoff:
+                    new_row = [bearing, col_index, rangeResolution, ping, (col_index * rangeResolution), time]
+                    out_data.append(new_row)
 
     return out_data  
 
