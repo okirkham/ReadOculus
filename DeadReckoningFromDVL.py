@@ -27,7 +27,8 @@ def compute_distance(df, heading_segments):
         start = pd.to_datetime(seg['start'])
         end = pd.to_datetime(seg['end'])
         heading = seg['heading']
-        df.loc[(df['timestamp'] >= start) & (df['timestamp'] < end), 'heading'] = heading
+        df['timestamp'] = pd.to_datetime(df['timestamp'], format="%Y.%m.%d %H:%M:%S:%f")
+        df.loc[(df['timestamp']>= start) & (df['timestamp'] < end), 'heading'] = heading
 
     df = df[df['heading'].notna()].copy()
 
