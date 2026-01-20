@@ -5,8 +5,7 @@ import os
 import numpy as np
 from sklearn.cluster import HDBSCAN
 
-def main():
-    '''
+'''
     readOculusV2.py
 
     Reads the binary .oculus file and extracts sonar data within specified timestamp ranges.
@@ -18,8 +17,10 @@ def main():
     Script will automatically remove data from first and last 2% of range to reduce sonar noise
 
     Use in conjunction with ProcessOculusCSV.py and DeadReckoningToPointCloud.py 
-    
-    '''
+
+'''
+
+def main():
     ################################################################################## settings ###################################################################################
     
     # adjust bearing range to remove bearings from output data. Values must be between 0 and 255. 48,208 is default
@@ -141,18 +142,18 @@ def main():
     del scannedList
     oculusBinary.close()
 
-    if cluster == True:
-        # create the master csv where scans will be merged after preprocessing
-        headers = ['bearing', 'rangeLine', 'rangeResolution', 'intensity', 'distance', 'timestamp']
-        master_df = pd.DataFrame(columns=headers)
-        out_master_name = binaryfile.replace(".oculus", ".csv")
-        out_master = os.path.join(base_path, "sonar", out_master_name)
+    # create the master csv where scans will be merged after preprocessing
+    headers = ['bearing', 'rangeLine', 'rangeResolution', 'intensity', 'distance', 'timestamp']
+    master_df = pd.DataFrame(columns=headers)
+    out_master_name = binaryfile.replace(".oculus", ".csv")
+    out_master = os.path.join(base_path, "sonar", out_master_name)
 
-        if os.path.exists(out_master):
-            print("master csv already exists")
-        else:
-            master_df.to_csv(out_master, index=False)
-        
+    if os.path.exists(out_master):
+        print("master csv already exists")
+    else:
+        master_df.to_csv(out_master, index=False)
+    
+    if cluster == True:
         # iterate through all scans in scans folder
         for scan in os.listdir(scans):
             # ignore previously created scans
@@ -162,7 +163,7 @@ def main():
                 # convert scan csv to data frame
                 scan_path = os.path.join(scans, scan)
                 df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
-
+                
                 # create new fields that contain the 2d cartesian coordinates of the sonar pings
                 df["bearing_cartesian"] = np.radians(90 - df["bearing"])
                 df["x"] = df["distance"] * np.cos(df["bearing_cartesian"])
@@ -209,7 +210,26 @@ def main():
                 subset.to_csv(out_master, mode='a', index=False, header=False)
 
                 print(f'{scan} merged with master csv')
+    else:
+        for scan in os.listdir(scans):
+            # ignore previously created scans
+            if scan in scannedSet:
+                print("scan already added to master csv")
+            else:
+                # convert scan csv to data frame
+                scan_path = os.path.join(scans, scan)
+                df = pd.read_csv(scan_path, encoding = "utf-8", sep=',')
 
+                filtered = pd.DataFrame(columns=df.columns)
+
+                # Extract the first six columns
+                subset = filtered.iloc[:, :6]
+
+                # Append to master DataFrame
+                subset.to_csv(out_master, mode='a', index=False, header=False)
+
+                print(f'{scan} merged with master csv')
+            
     print('finished')
 
 def find_oculus(path):
