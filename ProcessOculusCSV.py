@@ -4,17 +4,18 @@ import numpy as np
 import os
 import datetime
 
+'''
+ProcessOculusCSV.py
+
+Takes the raw csv sonar output from readOculus.py and merges it with positioning data from the combined_log and the dvl_deadreckoning_log
+
+Before running the script, base_path, timestamp_list and names should be modified to the desired input
+
+Use in conjunction with readOculusV2 and DeadReckoningToPointCloud.py
+'''
+
 def main():
-    '''
-    ProcessOculusCSV.py
-
-    Takes the raw csv sonar output from readOculus.py and merges it with positioning data from the combined_log and the dvl_deadreckoning_log
-
-    Before running the script, base_path, timestamp_list and names should be modified to the desired input
-
-    Use in conjunction with readOculusV2 and DeadReckoningToPointCloud.py
-    '''
-
+    ################################################################################## settings ###################################################################################
     # base path of ROV mission package
     base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06"
 
@@ -26,7 +27,6 @@ def main():
         ("2025.05.21 19:50:24:000", "2025.05.21 19:51:09:000")
     ]
 
-    #########################################################################################################################################################################################
     # Names of output csv files
     # Naming convention:
     # survey type code: cross section = CS, range finding = RF, sweeping scan = SS
@@ -40,7 +40,9 @@ def main():
 
     names = ["Oculus_20250521_194207_CS_2_N2S1_xx_SBT"]
 
-    #########################################################################################################################################################################################
+    
+
+    ###############################################################################################################################################################################
 
     # Load CSV file
     sonar = os.path.join(base_path, "sonar")

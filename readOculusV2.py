@@ -30,11 +30,11 @@ def main():
     cluster = False 
 
     # input misson package path
-    base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-42-06"  
+    base_path = r"C:\Users\0w3nk\Documents\Masters\MIS2025\Data\ROV\DEEP_TREKKER_MISSION-PACKAGE_2025-05-21_19-09-46"
 
     # A list of timestamps for scans that will be extracted from the oculus file
     timestamp_list = [
-        ("2025.05.21 19:50:24:000", "2025.05.21 19:51:03:000")
+        ("2025.05.21 19:10:54:000", "2025.05.21 19:17:59:000")
     ]
 
     # If True, scans will include all data, including 0 intensity pings which represent the absence of a ping. If False, data will only include pings greater then 0

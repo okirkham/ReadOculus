@@ -5,16 +5,17 @@ import os
 import math
 import pyproj
 
+'''
+DeadReckoningToPointCloud.py
+
+Converts filtered and merged Oculus sonar csv files into point clouds with UTM and lat/lon coordinates
+
+Use in conjunction with readOculusV2 and ProcessOculusCSV.py
+    
+'''
 
 def main():
-    '''
-    DeadReckoningToPointCloud.py
 
-    Converts filtered and merged Oculus sonar csv files into point clouds with UTM and lat/lon coordinates
-
-    Use in conjunction with readOculusV2 and ProcessOculusCSV.py
-    
-    '''
     # base path of mission package
     
     # coordinates of starting position [easting, northing]
@@ -57,10 +58,6 @@ def main():
                 elif merged[26:27] == "3":
                     df = crossSection(merged, base_path, offset, stake100m[0], stake100m[1])
                     output = True
-            # elif merged == "*_Rf_*":
-
-            # elif merged == "*_SS_*":
-
             else:
                 print(f"coordinates cannot be generated from {merged}")
             
